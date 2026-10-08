@@ -55,6 +55,7 @@ type SyncData = {
   }>;
   floatingNodes: Array<{
     id: string;
+    taskId?: string | null;
     kind: string;
     title: string;
     imageUrl: string | null;
@@ -193,6 +194,9 @@ export async function POST(req: Request) {
         create: {
           id: n.id,
           userId,
+          // 2026-10-08 加 taskId：让游离节点按任务隔离
+          // null = 旧数据 fallback，所有任务都显示
+          taskId: n.taskId ?? null,
           kind: n.kind,
           title: n.title,
           imageUrl: n.imageUrl,
@@ -204,6 +208,7 @@ export async function POST(req: Request) {
           updatedAt: new Date(n.createdAt),
         },
         update: {
+          taskId: n.taskId ?? null,
           kind: n.kind,
           title: n.title,
           imageUrl: n.imageUrl,

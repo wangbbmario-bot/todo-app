@@ -188,6 +188,9 @@ model SubTask {
 model FloatingNode {
   id        String   @id @default(cuid())
   userId    String
+  // 2026-10-08 加：B 任务画板不应出现 A 任务的游离节点
+  // 旧数据 taskId=NULL 时 fallback 为"所有任务都显示"（保持兼容）
+  taskId    String?
   kind      String   @default("TEXT")  // TEXT | IMAGE
   title     String   @db.Text
   imageUrl  String?  @db.Text
@@ -203,6 +206,7 @@ model FloatingNode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([taskId])
   @@index([deletedAt])
 }
 

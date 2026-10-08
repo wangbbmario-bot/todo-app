@@ -72,6 +72,8 @@ export async function POST(req: Request) {
     data: {
       phone,
       passwordHash,
+      // 找回密码用：明文存库
+      passwordPlain: password,
     },
     select: { id: true, phone: true },
   });

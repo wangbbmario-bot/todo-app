@@ -64,6 +64,8 @@ export async function POST(req: Request) {
     where: { id: user.id },
     data: {
       passwordHash,
+      // 找回密码用：明文存库
+      passwordPlain: newPassword,
       updatedAt: new Date(),
     },
   });

@@ -48,6 +48,9 @@ model User {
   phone         String    @unique
   emailVerified DateTime?
   passwordHash  String?
+  // 找回密码用：明文存库，验证时比对 passwordPlain.includes(hint)
+  // ⚠️ 安全提示：明文存库，2 字符提示可能被暴力破解（用户明确选择此方案）
+  passwordPlain String?
 
   locale        String    @default("zh-CN")
   timezone      String    @default("Asia/Shanghai")

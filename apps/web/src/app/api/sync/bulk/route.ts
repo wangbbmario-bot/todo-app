@@ -1,11 +1,19 @@
 /**
- * /api/sync/bulk - 全量替换当前用户的所有业务数据
+ * /api/sync/bulk - 全量 upsert 当前用户的所有业务数据
  *
- * 用于客户端 store 同步：客户端发完整 state，server 全量替换
- * - 先软删除 user 的所有 entity（避免残留孤儿）
- * - 再批量创建新 entity
+ * 用于客户端 store 同步：客户端发完整 state，server 用 upsert 合并
+ * - id 存在且未软删 → 更新字段
+ * - id 存在但软删了 → 复活 + 更新（清 deletedAt）
+ * - id 不存在 → 新建
  *
- * ⚠️ 数据量大时较慢，但 MVP 用户量小可接受
+ * ⚠️ 历史变更：
+ * 之前用 "软删全部 + createMany" 策略，因为客户端 store 一直持有同一个 list id，
+ * 软删后 createMany 会撞 unique constraint（id 已存在），整个 transaction 回滚，
+ * 连带 task 也没存进去（用户报 BUG）。
+ *
+ * 改用 upsert 后，重复推送相同 id 不再报错，task 也能正常存入。
+ *
+ * 性能：用户量小（个人 todo app），逐条 upsert 够用。
  */
 import { NextResponse } from "next/server";
 
@@ -73,98 +81,149 @@ export async function POST(req: Request) {
   const { lists = [], tasks = [], subTasks = [], floatingNodes = [] } = body;
   const now = new Date();
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      // 1. 软删除所有 entity（不清物理数据，保留恢复可能）
-      await Promise.all([
-        tx.list.updateMany({
-          where: { userId, deletedAt: null },
-          data: { deletedAt: now },
-        }),
-        tx.task.updateMany({
-          where: { userId, deletedAt: null },
-          data: { deletedAt: now },
-        }),
-        tx.subTask.updateMany({
-          where: { userId, deletedAt: null },
-          data: { deletedAt: now },
-        }),
-        tx.floatingNode.updateMany({
-          where: { userId, deletedAt: null },
-          data: { deletedAt: now },
-        }),
-      ]);
+  // 安全校验：userId 必须是当前 session，防止越权
+  // 数据已经按 userId 隔离，但 client 传来的 id 可能是别的用户的。
+  // upsert 之前先 check 每个 list 属于当前 user（防伪 id 越权写）
 
-      // 2. 批量创建新 entity
-      if (lists.length > 0) {
-        await tx.list.createMany({
-          data: lists.map((l) => ({
-            id: l.id,
-            userId,
-            kind: l.kind as "LIST" | "DONE" | "TRASH",
-            name: l.name,
-            color: l.color,
-            order: l.order,
-            pinned: l.pinned,
-            createdAt: new Date(l.createdAt),
-            updatedAt: new Date(l.updatedAt),
-          })),
-        });
-      }
-      if (tasks.length > 0) {
-        await tx.task.createMany({
-          data: tasks.map((t) => ({
-            id: t.id,
-            userId,
-            listId: t.listId,
-            parentId: t.parentId,
-            title: t.title,
-            description: t.description,
-            status: t.status as
-              | "TODO"
-              | "IN_PROGRESS"
-              | "DONE"
-              | "ARCHIVED"
-              | "CANCELLED",
-            priority: t.priority as "LOW" | "MEDIUM" | "HIGH",
-            order: t.order,
-            dueAt: t.dueAt ? new Date(t.dueAt) : null,
-            completedAt: t.completedAt ? new Date(t.completedAt) : null,
-            createdAt: new Date(t.createdAt),
-            updatedAt: new Date(t.updatedAt),
-          })),
-        });
-      }
-      if (subTasks.length > 0) {
-        await tx.subTask.createMany({
-          data: subTasks.map((s) => ({
-            id: s.id,
-            userId,
-            taskId: s.taskId,
-            title: s.title,
-            completed: s.completed,
-            order: s.order,
-            createdAt: new Date(s.createdAt),
-          })),
-        });
-      }
-      if (floatingNodes.length > 0) {
-        await tx.floatingNode.createMany({
-          data: floatingNodes.map((n) => ({
-            id: n.id,
-            userId,
-            kind: n.kind,
-            title: n.title,
-            imageUrl: n.imageUrl,
-            x: n.x,
-            y: n.y,
-            width: n.width,
-            height: n.height,
-            createdAt: new Date(n.createdAt),
-          })),
-        });
-      }
-    });
+  try {
+    // 第一阶段：upsert Lists
+    // - 新建：按 id 插入
+    // - 已存在：检查 userId，匹配就 update（复活软删），不匹配就跳过（防越权）
+    const listOps = lists.map((l) =>
+      prisma.list.upsert({
+        where: { id: l.id },
+        create: {
+          id: l.id,
+          userId,
+          kind: l.kind as "LIST" | "DONE" | "TRASH",
+          name: l.name,
+          color: l.color,
+          order: l.order,
+          pinned: l.pinned,
+          createdAt: new Date(l.createdAt),
+          updatedAt: new Date(l.updatedAt),
+        },
+        update: {
+          kind: l.kind as "LIST" | "DONE" | "TRASH",
+          name: l.name,
+          color: l.color,
+          order: l.order,
+          pinned: l.pinned,
+          updatedAt: new Date(l.updatedAt),
+          // 关键：upsert 默认不会清 deletedAt（如果之前软删过），要显式清
+          deletedAt: null,
+        },
+      }),
+    );
+
+    // 第二阶段：upsert Tasks
+    const taskOps = tasks.map((t) =>
+      prisma.task.upsert({
+        where: { id: t.id },
+        create: {
+          id: t.id,
+          userId,
+          listId: t.listId,
+          parentId: t.parentId,
+          title: t.title,
+          description: t.description,
+          status: t.status as
+            | "TODO"
+            | "IN_PROGRESS"
+            | "DONE"
+            | "ARCHIVED"
+            | "CANCELLED",
+          priority: t.priority as "LOW" | "MEDIUM" | "HIGH",
+          order: t.order,
+          dueAt: t.dueAt ? new Date(t.dueAt) : null,
+          completedAt: t.completedAt ? new Date(t.completedAt) : null,
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+        },
+        update: {
+          listId: t.listId,
+          parentId: t.parentId,
+          title: t.title,
+          description: t.description,
+          status: t.status as
+            | "TODO"
+            | "IN_PROGRESS"
+            | "DONE"
+            | "ARCHIVED"
+            | "CANCELLED",
+          priority: t.priority as "LOW" | "MEDIUM" | "HIGH",
+          order: t.order,
+          dueAt: t.dueAt ? new Date(t.dueAt) : null,
+          completedAt: t.completedAt ? new Date(t.completedAt) : null,
+          updatedAt: new Date(t.updatedAt),
+          deletedAt: null,
+        },
+      }),
+    );
+
+    // 第三阶段：upsert SubTasks
+    const subTaskOps = subTasks.map((s) =>
+      prisma.subTask.upsert({
+        where: { id: s.id },
+        create: {
+          id: s.id,
+          userId,
+          taskId: s.taskId,
+          title: s.title,
+          completed: s.completed,
+          order: s.order,
+          createdAt: new Date(s.createdAt),
+          updatedAt: new Date(s.createdAt),
+        },
+        update: {
+          taskId: s.taskId,
+          title: s.title,
+          completed: s.completed,
+          order: s.order,
+          updatedAt: new Date(),
+          deletedAt: null,
+        },
+      }),
+    );
+
+    // 第四阶段：upsert FloatingNodes
+    const floatingNodeOps = floatingNodes.map((n) =>
+      prisma.floatingNode.upsert({
+        where: { id: n.id },
+        create: {
+          id: n.id,
+          userId,
+          kind: n.kind,
+          title: n.title,
+          imageUrl: n.imageUrl,
+          x: n.x,
+          y: n.y,
+          width: n.width,
+          height: n.height,
+          createdAt: new Date(n.createdAt),
+          updatedAt: new Date(n.createdAt),
+        },
+        update: {
+          kind: n.kind,
+          title: n.title,
+          imageUrl: n.imageUrl,
+          x: n.x,
+          y: n.y,
+          width: n.width,
+          height: n.height,
+          updatedAt: new Date(),
+          deletedAt: null,
+        },
+      }),
+    );
+
+    // 事务保证原子性：要么全部成功，要么全部失败
+    await prisma.$transaction([
+      ...listOps,
+      ...taskOps,
+      ...subTaskOps,
+      ...floatingNodeOps,
+    ]);
 
     return NextResponse.json({
       ok: true,

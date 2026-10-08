@@ -1,0 +1,36 @@
+# =====================================================
+# .dockerignore - 排除不进 build context 的文件
+#
+# 否则 docker build 会把 node_modules / pnpm-lock.yaml 等超大文件
+# 拷贝进 builder image，触发 "cannot copy to non-directory" 错误
+# (host 端 pnpm install 留下的 node_modules vs builder 端 pnpm install
+# 创建的 @prisma/client 软链冲突)
+# =====================================================
+
+# node_modules（build 容器内重装）
+**/node_modules/
+**/.pnpm-store/
+**/.next/
+
+# lock file（容器内会重生成）
+pnpm-lock.yaml
+
+# macOS 散件
+.DS_Store
+._*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# git
+.git/
+
+# 本地日志 / 临时
+*.log
+/tmp/
+
+# 备份
+*.bak
+*.bak2

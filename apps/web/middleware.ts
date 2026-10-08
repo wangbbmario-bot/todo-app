@@ -23,6 +23,8 @@ function isLoggedIn(req: NextRequest): boolean {
 const PUBLIC_PATHS = [
   "/login",
   "/register",
+  "/forgot-password",
+  "/reset-password",
   "/api/auth",
   "/api/register",
 ];

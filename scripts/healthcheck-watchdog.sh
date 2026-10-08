@@ -25,6 +25,18 @@ UNHEALTHY_THRESHOLD="${WATCHDOG_THRESHOLD:-3}"
 STATE_FILE="/tmp/todo-webdog-state"
 MAX_LOG_AGE_DAYS=7
 
+# 飞书 webhook 通知（必须在 flock 子 shell 之前定义）
+send_feishu() {
+  local msg="$1"
+  if [ -z "$WEBHOOK_URL" ]; then
+    return
+  fi
+  curl -sS -X POST "$WEBHOOK_URL" \
+    -H 'Content-Type: application/json' \
+    -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"$msg\"}}" \
+    --max-time 10 || true
+}
+
 # 防止重叠执行
 (
   if ! flock -n 9; then
@@ -96,18 +108,6 @@ MAX_LOG_AGE_DAYS=7
     exit 1
   fi
 ) 9>"$LOCK_FILE"
-
-# 飞书 webhook 通知
-send_feishu() {
-  local msg="$1"
-  if [ -z "$WEBHOOK_URL" ]; then
-    return
-  fi
-  curl -sS -X POST "$WEBHOOK_URL" \
-    -H 'Content-Type: application/json' \
-    -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"$msg\"}}" \
-    --max-time 10 || true
-}
 
 # 清理旧日志
 find /var/log/todo-watchdog.log* -mtime +${MAX_LOG_AGE_DAYS} -delete 2>/dev/null || true

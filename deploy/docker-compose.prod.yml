@@ -26,6 +26,10 @@ services:
     image: todo-web:latest
     container_name: todo-web
     restart: unless-stopped
+    build:
+      # context 必须是 repo 根，Dockerfile.prod 里所有路径都是相对的（没 ../）
+      context: ..
+      dockerfile: apps/web/Dockerfile.prod
     command: ["/bin/sh", "-c", "node apps/web/server.js 2>&1 | tee -a /var/log/todo-web/app.log"]
     depends_on:
       db:

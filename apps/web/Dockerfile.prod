@@ -1,39 +1,68 @@
 # =====================================================
 # Next.js 生产 Dockerfile（standalone 模式）
-# context = apps/web（docker-compose.prod.yml: context: ../apps/web）
-# 所有 COPY 路径相对于 build context
+#
+# 关键：build context = /opt/todo/app（repo 根），不是 apps/web。
+#       所有路径相对 repo 根，没有 ../ 引用 → 不会再被 BuildKit 拒绝。
+#
+# 2026-10-08 修订：
+# - base 改回 node:22-alpine（22.23.3 alpine 3.24.2，跟成功跑着的 91aaa7a40999 同源）
+# - 加 pnpm 国内镜像源（registry.npmmirror.com），解决 step 12 卡 568/569 包的问题
+# - 加 libssl1.1 装包（alpine 3.18 还有，alpine 3.24 没）→ 直接拷 .so 文件从 alpine 3.18 stage 复制到 runner
 # =====================================================
 
-# ---------- 阶段 1: 装依赖 + 构建 ----------
-FROM node:20-alpine AS builder
+# ---------- 阶段 0: 提供 libssl 1.1（Prisma 5 linux-musl engine 需要）----------
+FROM alpine:3.18 AS libssl
+RUN apk add --no-cache libssl1.1
 
+# ---------- 阶段 1: 装依赖 + 构建 ----------
+FROM node:22-alpine AS builder
+
+# pnpm + 国内镜像源（关键变更：解决 step 12 卡 568/569 包的问题）
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
+RUN npm config set registry https://registry.npmmirror.com
 
 WORKDIR /repo
 
-# pnpm workspace 配置（在 apps/web 上一层）
-COPY ../package.json ../pnpm-lock.yaml ../pnpm-workspace.yaml ../tsconfig.base.json* /repo/
-COPY ../apps/web/package.json /repo/apps/web/
-COPY ../packages/db/package.json /repo/packages/db/
+# 拷贝 libssl 1.1 → builder，让 prisma generate 能正常 load
+COPY --from=libssl /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1.1
+COPY --from=libssl /usr/lib/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
+RUN ln -sf /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1 && \
+    ln -sf /usr/lib/libcrypto.so.1.1 /usr/lib/libcrypto.so.1
 
-# 装依赖
-RUN cd /repo && pnpm install --frozen-lockfile
+# workspace 元数据（context = repo 根，没有 ../）
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json* ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/db/package.json ./packages/db/
 
-# 拷贝源码（context 是 apps/web，所以 ../packages/db 是 packages/db）
-COPY . /repo/apps/web
-COPY ../packages/db /repo/packages/db
+# 装依赖：用 npmmirror，避免卡住
+RUN pnpm install --frozen-lockfile --reporter=ndjson
 
-# 生成 Prisma Client
-RUN cd /repo && pnpm --filter @todo/db generate
+# 拷贝源码
+COPY apps/web ./apps/web
+COPY packages/db ./packages/db
+
+# 生成 Prisma Client（linux-musl engine 已和 libssl1.1 在位）
+RUN pnpm --filter @todo/db generate
 
 # 构建 Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN cd /repo && pnpm --filter web build
+RUN pnpm --filter web build
 
 # ---------- 阶段 2: 运行时 ----------
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /repo
+
+# 拷贝 libssl 1.1（Prisma runtime engine 也要）
+COPY --from=libssl /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1.1
+COPY --from=libssl /usr/lib/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
+RUN ln -sf /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1 && \
+    ln -sf /usr/lib/libcrypto.so.1.1 /usr/lib/libcrypto.so.1
+
+# 健康检查要 wget 或 curl
+RUN apk add --no-cache wget curl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -44,8 +73,6 @@ ENV HOSTNAME=0.0.0.0
 COPY --from=builder /repo/apps/web/.next/standalone ./
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
-
-# Prisma Client 运行时依赖
 
 EXPOSE 3000
 

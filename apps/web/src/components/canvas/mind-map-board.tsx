@@ -153,24 +153,35 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
 
       let handled = false;
 
-      // 1) 图片
+      // 1) 图片：先 POST /api/upload 拿到 URL，再 addFloatingNode
       for (const item of Array.from(items)) {
         if (item.kind === "file" && item.type.startsWith("image/")) {
           const blob = item.getAsFile();
           if (!blob) continue;
-          const reader = new FileReader();
-          reader.onload = () => {
-            const dataUrl = reader.result as string;
-            addFloatingNode({
-              kind: "IMAGE",
-              title: `图片 ${new Date().toLocaleTimeString("zh-CN")}`,
-              imageUrl: dataUrl,
-              taskId: task.id, // BUG-15：绑定任务
-              x: 400,
-              y: floatingNodesRef.current.length * 100 + 60,
-            });
-          };
-          reader.readAsDataURL(blob);
+          // 异步：fetch 上传 → 拿到 url → addFloatingNode
+          (async () => {
+            try {
+              const fd = new FormData();
+              fd.append("file", blob, blob.name || "image");
+              const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                console.error("[upload] failed:", err.error || res.status);
+                return;
+              }
+              const { url } = (await res.json()) as { url: string };
+              addFloatingNode({
+                kind: "IMAGE",
+                title: `图片 ${new Date().toLocaleTimeString("zh-CN")}`,
+                imageUrl: url,
+                taskId: task.id, // BUG-15：绑定任务
+                x: 400,
+                y: floatingNodesRef.current.length * 100 + 60,
+              });
+            } catch (err) {
+              console.error("[upload] error:", err);
+            }
+          })();
           handled = true;
           break;
         }

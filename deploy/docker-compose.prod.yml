@@ -47,9 +47,11 @@ services:
       AUTH_TRUST_HOST: true
       DOMAIN: ${DOMAIN}
       FEISHU_WEBHOOK_URL: ${FEISHU_WEBHOOK_URL:-}
+      UPLOAD_DIR: /data/uploads
       NODE_ENV: production
     volumes:
       - todo-logs:/var/log/todo-web
+      - uploads:/data/uploads
     logging:
       driver: json-file
       options:
@@ -77,6 +79,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 同一个 uploads volume 挂到 caddy 的 /uploads，Caddyfile 用 file_server root /uploads
+      - uploads:/uploads:ro
     logging:
       driver: json-file
       options:
@@ -88,3 +92,4 @@ volumes:
   todo-logs:
   caddy_data:
   caddy_config:
+  uploads:

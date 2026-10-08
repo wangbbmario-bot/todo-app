@@ -1,34 +1,61 @@
+# 域名站点（HTTPS 由 Caddy 自动申请 Let's Encrypt 证书）
 juststartit.cn, www.juststartit.cn, 47.107.46.78.nip.io {
-encode zstd gzip
-reverse_proxy web:3000 {
-header_up Host {host}
-header_up X-Real-IP {remote}
-header_up X-Forwarded-For {remote}
-header_up X-Forwarded-Proto {scheme}
+	encode zstd gzip
+
+	# /uploads/* 静态文件（用户上传的图片，由 Caddy 直接 serve，不走 web）
+	# uploads volume 挂到 caddy 容器的 /uploads 路径
+	handle /uploads/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		file_server {
+			root /uploads
+		}
+	}
+
+	# 其他路径全部走 Next.js
+	reverse_proxy web:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	@static path /_next/static/* /icons/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
 }
-@static path /_next/static/* /icons/* /uploads/*
-header @static Cache-Control "public, max-age=31536000, immutable"
-header {
-X-Content-Type-Options "nosniff"
-X-Frame-Options "DENY"
-Referrer-Policy "strict-origin-when-cross-origin"
--Server
-}
-}
+
+# 纯 HTTP 入口（无 cert 时用）
 http://47.107.46.78.nip.io, http://47.107.46.78 {
-encode zstd gzip
-reverse_proxy web:3000 {
-header_up Host {host}
-header_up X-Real-IP {remote}
-header_up X-Forwarded-For {remote}
-header_up X-Forwarded-Proto {scheme}
-}
-@static path /_next/static/* /icons/* /uploads/*
-header @static Cache-Control "public, max-age=31536000, immutable"
-header {
-X-Content-Type-Options "nosniff"
--X-Frame-Options
-Referrer-Policy "strict-origin-when-cross-origin"
--Server
-}
+	encode zstd gzip
+
+	# /uploads/* 静态文件
+	handle /uploads/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		file_server {
+			root /uploads
+		}
+	}
+
+	reverse_proxy web:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	@static path /_next/static/* /icons/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	header {
+		X-Content-Type-Options "nosniff"
+		-X-Frame-Options
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
 }

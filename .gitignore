@@ -1,0 +1,28 @@
+# 不要跟 node_modules 较劲
+node_modules/
+.pnpm-store/
+.next/
+playwright-report/
+playwright/.cache/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+._*
+
+# 编辑器
+.vscode/
+.idea/
+
+# 备份 / 中间文件
+*.bak
+*.bak2
+pnpm-lock.yaml
+
+# 敏感
+.env
+.env.local
+.env.*.local

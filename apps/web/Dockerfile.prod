@@ -1,0 +1,55 @@
+# =====================================================
+# Next.js 生产 Dockerfile（standalone 模式）
+# context = apps/web（docker-compose.prod.yml: context: ../apps/web）
+# 所有 COPY 路径相对于 build context
+# =====================================================
+
+# ---------- 阶段 1: 装依赖 + 构建 ----------
+FROM node:20-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /repo
+
+# pnpm workspace 配置（在 apps/web 上一层）
+COPY ../package.json ../pnpm-lock.yaml ../pnpm-workspace.yaml ../tsconfig.base.json* /repo/
+COPY ../apps/web/package.json /repo/apps/web/
+COPY ../packages/db/package.json /repo/packages/db/
+
+# 装依赖
+RUN cd /repo && pnpm install --frozen-lockfile
+
+# 拷贝源码（context 是 apps/web，所以 ../packages/db 是 packages/db）
+COPY . /repo/apps/web
+COPY ../packages/db /repo/packages/db
+
+# 生成 Prisma Client
+RUN cd /repo && pnpm --filter @todo/db generate
+
+# 构建 Next.js
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN cd /repo && pnpm --filter web build
+
+# ---------- 阶段 2: 运行时 ----------
+FROM node:20-alpine AS runner
+
+WORKDIR /repo
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# 拷贝 standalone 构建产物
+COPY --from=builder /repo/apps/web/.next/standalone ./
+COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /repo/apps/web/public ./apps/web/public
+
+# Prisma Client 运行时依赖
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD wget --spider --quiet http://localhost:3000/ || exit 1
+
+CMD ["node", "apps/web/server.js"]

@@ -1,0 +1,19 @@
+{
+  "name": "@todo/config",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "tsconfig",
+    "eslint",
+    "prettier",
+    "tailwind"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./eslint": "./eslint/index.js",
+    "./prettier": "./prettier/index.js",
+    "./tailwind": "./tailwind/index.js"
+  }
+}

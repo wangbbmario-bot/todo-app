@@ -1,0 +1,34 @@
+juststartit.cn, www.juststartit.cn, 47.107.46.78.nip.io {
+encode zstd gzip
+reverse_proxy web:3000 {
+header_up Host {host}
+header_up X-Real-IP {remote}
+header_up X-Forwarded-For {remote}
+header_up X-Forwarded-Proto {scheme}
+}
+@static path /_next/static/* /icons/* /uploads/*
+header @static Cache-Control "public, max-age=31536000, immutable"
+header {
+X-Content-Type-Options "nosniff"
+X-Frame-Options "DENY"
+Referrer-Policy "strict-origin-when-cross-origin"
+-Server
+}
+}
+http://47.107.46.78.nip.io, http://47.107.46.78 {
+encode zstd gzip
+reverse_proxy web:3000 {
+header_up Host {host}
+header_up X-Real-IP {remote}
+header_up X-Forwarded-For {remote}
+header_up X-Forwarded-Proto {scheme}
+}
+@static path /_next/static/* /icons/* /uploads/*
+header @static Cache-Control "public, max-age=31536000, immutable"
+header {
+X-Content-Type-Options "nosniff"
+-X-Frame-Options
+Referrer-Policy "strict-origin-when-cross-origin"
+-Server
+}
+}

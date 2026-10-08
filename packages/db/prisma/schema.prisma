@@ -1,0 +1,238 @@
+// =====================================================
+// Todo App - Prisma Schema
+// 数据库：PostgreSQL 16
+// ORM：Prisma
+// =====================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+  binaryTargets   = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// 枚举
+// =====================================================
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ListKind {
+  LIST
+  DONE
+  TRASH
+}
+
+// =====================================================
+// 用户与认证（NextAuth.js 兼容）
+// =====================================================
+
+model User {
+  id            String    @id @default(cuid())
+  phone         String    @unique
+  email         String?   // 兼容字段：next-auth PrismaAdapter 要求保留（OAuth 关联用），UI 不输入
+  emailVerified DateTime?
+  name          String?
+  passwordHash  String?
+  // SECURITY (dev-only): 明文密码，用于"模糊密码提示找回"功能。
+  // 生产前必须删除或换成 SMS 验证码 —— 见 lib/password-reset.ts 注释。
+  passwordPlain String?
+
+  locale        String    @default("zh-CN")
+  timezone      String    @default("Asia/Shanghai")
+  role          String    @default("MEMBER") // MEMBER | ADMIN
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  accounts      Account[]
+  sessions      Session[]
+  lists         List[]
+  tasks         Task[]
+  subTasks      SubTask[]
+  floatingNodes FloatingNode[]
+  auditLogs     AuditLog[]
+
+  @@index([phone])
+  @@index([deletedAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =====================================================
+// 业务表（按 userId 隔离）
+// =====================================================
+
+model List {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      ListKind @default(LIST)
+  name      String
+  color     String   @default("#3B82F6")
+  order     Int      @default(0)
+  pinned    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([userId, order])
+  @@index([userId, kind])
+  @@index([deletedAt])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  userId      String
+  listId      String
+  parentId    String?
+
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  order       Int        @default(0)
+
+  startAt     DateTime?
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list     List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  parent   Task?     @relation("SubTasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks Task[]    @relation("SubTasks")
+  subTasks SubTask[]
+
+  @@index([userId, listId, status, order])
+  @@index([userId, status])
+  @@index([userId, dueAt])
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+model SubTask {
+  id        String   @id @default(cuid())
+  userId    String
+  taskId    String
+  title     String
+  completed Boolean  @default(false)
+  order     Int      @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, taskId, order])
+  @@index([deletedAt])
+}
+
+model FloatingNode {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String   @default("TEXT")  // TEXT | IMAGE
+  title     String   @db.Text
+  imageUrl  String?  @db.Text
+  x         Float    @default(0)
+  y         Float    @default(0)
+  width     Float?
+  height    Float?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+// =====================================================
+// 管理后台（2026-08 第二轮新增）
+// =====================================================
+//
+// 数据库里 Announcement / SystemConfig 表已通过 psql 直接创建，
+// schema 里只声明 AuditLog（admin API 用 prisma.auditLog.findMany）。
+// Announcement / SystemConfig 在 admin API 里用 prisma.$queryRaw 访问，
+// 故意不映射成 typed model，避免后续 schema 改动导致 raw SQL 跑偏。
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // user.enable / user.disable / config.update / announcement.create ...
+  targetType String?  // User / SystemConfig / Announcement ...
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}

@@ -20,6 +20,17 @@ COMPOSE_FILE="${COMPOSE_FILE:-/opt/todo/app/deploy/docker-compose.prod.yml}"
 TAG="${TAG:-v-$(date +%Y%m%d-%H%M%S)}"
 LOG="/tmp/build-${TAG}.log"
 
+# DB 凭据必须从 .env 读，跟 docker-compose 用同一份
+ENV_FILE="${ENV_FILE:-/opt/todo/app/deploy/.env}"
+if [ ! -f "$ENV_FILE" ]; then
+  echo "❌ 找不到 .env: $ENV_FILE"
+  exit 1
+fi
+DB_USER=$(grep '^DB_USER=' "$ENV_FILE" | cut -d= -f2)
+DB_PASSWORD=$(grep '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2)
+DB_NAME=$(grep '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)
+DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
+
 echo "=== 内存检查（防 OOM kill dockerd） ==="
 FREE_MB=$(free -m | awk '/^Mem:/ {print $7}')
 echo "  可用内存: ${FREE_MB} MB"
@@ -47,13 +58,17 @@ docker tag "todo-web:${TAG}" todo-web:v-stable-stable
 
 echo "=== 应用 prisma migrations（在重启前） ==="
 # 用一个临时容器跑 migrate deploy（自带 prisma CLI + @prisma/client）
+# 先设 npm registry 到 npmmirror（中国 server 必须）
 docker run --rm \
   --network "${PROJECT_NAME}_default" \
-  -e DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}" \
+  -e DATABASE_URL="$DATABASE_URL" \
   -v /opt/todo/app/packages/db:/db \
   -w /db \
   node:20-alpine sh -c "
-    npm install --no-save --silent prisma@5.16.0 2>&1 | tail -2
+    set -e
+    apk add --no-cache openssl 2>&1 | tail -1
+    npm config set registry https://registry.npmmirror.com
+    npm install --no-save --silent prisma@5.16.0 @prisma/client@5.16.0 2>&1 | tail -2
     npx prisma migrate deploy 2>&1
   " 2>&1 | tail -10
 

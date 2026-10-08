@@ -511,7 +511,12 @@ export const useTasksForList = (listId: string | null) =>
   );
 
 export const useSelectedList = () =>
-  useTodoStore((s) => s.lists.find((l) => l.id === s.selectedListId) ?? null);
+  useTodoStore((s) => {
+    const id = s.selectedListId;
+    if (!id) return null;
+    // 先查 store.lists（用户清单），再查 SYSTEM_LISTS（虚拟的 list-done / list-trash）
+    return s.lists.find((l) => l.id === id) ?? SYSTEM_LISTS.find((l) => l.id === id) ?? null;
+  });
 
 export const useSelectedTask = () =>
   useTodoStore((s) => s.tasks.find((t) => t.id === s.selectedTaskId) ?? null);

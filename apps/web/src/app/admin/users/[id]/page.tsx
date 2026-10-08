@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 interface UserDetail {
   id: string;
   phone: string;
-  name: string | null;
   image: string | null;
   role: string;
   locale: string;
@@ -80,8 +79,7 @@ export default function AdminUserDetailPage({
       <div>
         <h1 className="mb-1 text-2xl font-bold">{user.phone}</h1>
         <p className="text-sm text-muted-foreground">
-          {user.name ?? "(未设置昵称)"} · 加入于{" "}
-          {new Date(user.createdAt).toLocaleString("zh-CN")}
+          加入于 {new Date(user.createdAt).toLocaleString("zh-CN")}
         </p>
       </div>
 

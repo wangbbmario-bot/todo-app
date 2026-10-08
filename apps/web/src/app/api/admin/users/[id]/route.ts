@@ -16,7 +16,6 @@ export const GET = withAdmin(async ({ params }) => {
     select: {
       id: true,
       phone: true,
-      name: true,
       role: true,
       locale: true,
       timezone: true,
@@ -33,8 +32,6 @@ export const GET = withAdmin(async ({ params }) => {
     user: {
       id: user.id,
       phone: user.phone,
-      name: user.name,
-      // image: user.image,  // schema 没 image 字段（next-auth 已自动兼容）
       role: user.role,
       locale: user.locale,
       timezone: user.timezone,

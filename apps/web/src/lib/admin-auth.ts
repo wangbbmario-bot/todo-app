@@ -11,8 +11,7 @@ import { prisma } from "@/lib/db";
 export type AdminSession = {
   user: {
     id: string;
-    email: string;
-    name?: string | null;
+    phone?: string;
     image?: string | null;
     role?: string;
   };

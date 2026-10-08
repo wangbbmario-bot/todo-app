@@ -11,7 +11,6 @@ const RegisterSchema = z.object({
     .regex(/^1[3-9]\d{9}$/, "手机号必须是 11 位 1 开头的数字")
     .max(11),
   password: z.string().min(8).max(72),
-  name: z.string().min(1).max(40).optional(),
 });
 
 const LIST_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6"];
@@ -58,7 +57,7 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const { phone, password, name } = parsed.data;
+  const { phone, password } = parsed.data;
 
   const existing = await prisma.user.findUnique({
     where: { phone },
@@ -72,11 +71,10 @@ export async function POST(req: Request) {
   const user = await prisma.user.create({
     data: {
       phone,
-      name: name?.trim() || null,
       passwordHash,
       passwordPlain: password,
     },
-    select: { id: true, phone: true, name: true },
+    select: { id: true, phone: true },
   });
 
   // 注册成功后自动 seed 5 个默认清单

@@ -23,7 +23,7 @@ export const GET = withAdmin(async ({ req }) => {
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
-      user: { select: { email: true, name: true } },
+      user: { select: { phone: true, role: true } },
     },
   });
 

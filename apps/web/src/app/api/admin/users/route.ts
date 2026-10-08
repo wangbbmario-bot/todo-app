@@ -21,8 +21,7 @@ export const GET = withAdmin(async ({ req }) => {
   const where: Record<string, unknown> = { deletedAt: null };
   if (search) {
     where.OR = [
-      { email: { contains: search, mode: "insensitive" } },
-      { name: { contains: search, mode: "insensitive" } },
+      { phone: { contains: search, mode: "insensitive" } },
     ];
   }
 
@@ -35,7 +34,6 @@ export const GET = withAdmin(async ({ req }) => {
       select: {
         id: true,
         phone: true,
-        name: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -49,7 +47,6 @@ export const GET = withAdmin(async ({ req }) => {
     users: users.map((u) => ({
       id: u.id,
       phone: u.phone,
-      name: u.name,
       role: u.role,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,

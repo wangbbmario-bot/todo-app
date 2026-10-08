@@ -22,7 +22,6 @@ declare module "next-auth" {
     user: {
       id: string;
       phone?: string;
-      name?: string | null;
       image?: string | null;
       role?: string;
     } & DefaultSession["user"];
@@ -57,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { phone },
-          select: { id: true, phone: true, name: true, passwordHash: true, role: true },
+          select: { id: true, phone: true, passwordHash: true, role: true },
         });
         if (!user?.passwordHash) return null;
 
@@ -67,7 +66,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user.id,
           phone: user.phone,
-          name: user.name,
           role: user.role,
         };
       },

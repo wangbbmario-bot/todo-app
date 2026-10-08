@@ -46,9 +46,7 @@ enum ListKind {
 model User {
   id            String    @id @default(cuid())
   phone         String    @unique
-  email         String?   // 兼容字段：next-auth PrismaAdapter 要求保留（OAuth 关联用），UI 不输入
   emailVerified DateTime?
-  name          String?
   passwordHash  String?
   // SECURITY (dev-only): 明文密码，用于"模糊密码提示找回"功能。
   // 生产前必须删除或换成 SMS 验证码 —— 见 lib/password-reset.ts 注释。

@@ -19,7 +19,6 @@ import {
 interface UserRow {
   id: string;
   phone: string;
-  name: string | null;
   role: string;
   createdAt: string;
   taskCount: number;
@@ -72,23 +71,17 @@ export default function AdminUsersPage() {
 
   const columns: AdminTableColumn<UserRow>[] = [
     {
-      key: "email",
-      header: "邮箱",
+      key: "phone",
+      header: "手机号",
       render: (u) => (
         <Link
           href={`/admin/users/${u.id}`}
           className="font-mono text-xs text-primary hover:underline"
-          data-testid={`admin-user-email-${u.id}`}
+          data-testid={`admin-user-phone-${u.id}`}
         >
           {u.phone}
         </Link>
       ),
-    },
-    {
-      key: "name",
-      header: "昵称",
-      render: (u) =>
-        u.name ?? <em className="text-muted-foreground">—</em>,
     },
     {
       key: "role",

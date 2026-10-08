@@ -12,9 +12,6 @@
 **/.pnpm-store/
 **/.next/
 
-# lock file（容器内会重生成）
-pnpm-lock.yaml
-
 # macOS 散件
 .DS_Store
 ._*
@@ -34,3 +31,6 @@ pnpm-lock.yaml
 # 备份
 *.bak
 *.bak2
+
+# 不排除：
+# - pnpm-lock.yaml（Dockerfile 需要它做 pnpm install --frozen-lockfile）

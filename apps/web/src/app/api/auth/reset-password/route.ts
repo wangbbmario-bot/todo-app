@@ -64,7 +64,6 @@ export async function POST(req: Request) {
     where: { id: user.id },
     data: {
       passwordHash,
-      passwordPlain: newPassword, // SECURITY (dev-only): 同步明文
       updatedAt: new Date(),
     },
   });

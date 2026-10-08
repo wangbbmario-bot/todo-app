@@ -72,7 +72,6 @@ export async function POST(req: Request) {
     data: {
       phone,
       passwordHash,
-      passwordPlain: password,
     },
     select: { id: true, phone: true },
   });

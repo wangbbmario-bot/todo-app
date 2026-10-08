@@ -61,8 +61,6 @@ export async function POST(req: Request) {
     where: { id: user.id },
     data: {
       passwordHash,
-      // SECURITY (dev-only): 同步明文，配合"模糊密码提示找回"功能
-      passwordPlain: newPassword,
       updatedAt: new Date(),
     },
   });

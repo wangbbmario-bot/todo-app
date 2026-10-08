@@ -48,9 +48,6 @@ model User {
   phone         String    @unique
   emailVerified DateTime?
   passwordHash  String?
-  // SECURITY (dev-only): 明文密码，用于"模糊密码提示找回"功能。
-  // 生产前必须删除或换成 SMS 验证码 —— 见 lib/password-reset.ts 注释。
-  passwordPlain String?
 
   locale        String    @default("zh-CN")
   timezone      String    @default("Asia/Shanghai")

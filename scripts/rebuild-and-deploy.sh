@@ -11,6 +11,7 @@
 # 关键参数：
 #   - PROJECT_NAME 必须跟历史一致（todo），否则会创建新的空 volumes
 #   - 用 npmmirror + BuildKit 内联 cache
+#   - 重启前会自动跑 prisma migrate deploy（应用未应用的 schema 迁移）
 # =====================================================
 set -e
 
@@ -35,18 +36,36 @@ docker build \
   -t "todo-web:${TAG}" \
   .. 2>&1 | tee "$LOG"
 
-if [ ! -z "$(docker images -q "todo-web:${TAG}")" ]; then
-  echo "=== BUILD OK ==="
-  docker tag "todo-web:${TAG}" todo-web:latest
-  docker tag "todo-web:${TAG}" todo-web:v-stable-stable
-
-  echo "=== 重启容器（保留 data volumes）==="
-  docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d 2>&1 | tail -10
-
-  echo "=== 等 30s 健康检查 ==="
-  sleep 30
-  docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -5
-else
+if [ -z "$(docker images -q "todo-web:${TAG}")" ]; then
   echo "❌ BUILD FAILED，看 $LOG"
   exit 1
 fi
+
+echo "=== BUILD OK ==="
+docker tag "todo-web:${TAG}" todo-web:latest
+docker tag "todo-web:${TAG}" todo-web:v-stable-stable
+
+echo "=== 应用 prisma migrations（在重启前） ==="
+# 用一个临时容器跑 migrate deploy（自带 prisma CLI + @prisma/client）
+docker run --rm \
+  --network "${PROJECT_NAME}_default" \
+  -e DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}" \
+  -v /opt/todo/app/packages/db:/db \
+  -w /db \
+  node:20-alpine sh -c "
+    npm install --no-save --silent prisma@5.16.0 2>&1 | tail -2
+    npx prisma migrate deploy 2>&1
+  " 2>&1 | tail -10
+
+echo "=== 重启容器（保留 data volumes）==="
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d 2>&1 | tail -10
+
+echo "=== 等 30s 健康检查 ==="
+sleep 30
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -5
+
+echo ""
+echo "✅ Deploy 完成"
+echo "   当前 image: ${TAG}"
+echo "   v-stable-stable 已更新"
+echo "   DB migrations 已应用"

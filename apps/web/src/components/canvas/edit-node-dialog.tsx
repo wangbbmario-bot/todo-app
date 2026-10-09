@@ -17,6 +17,7 @@ import {
 interface EditNodeDialogProps {
   open: boolean;
   initialTitle: string;
+  kind: "subtask" | "floating"; // 决定标题文案
   onConfirm: (title: string) => void;
   onCancel: () => void;
 }
@@ -26,8 +27,10 @@ interface EditNodeDialogProps {
  *
  * 双击画板节点时弹出，输入框自动 focus，
  * Enter 提交，Esc 取消。
+ *
+ * 2026-10-09 改造：支持改名子任务和游离节点（之前只支持子任务，游离节点双击没反应）
  */
-export function EditNodeDialog({ open, initialTitle, onConfirm, onCancel }: EditNodeDialogProps) {
+export function EditNodeDialog({ open, initialTitle, kind, onConfirm, onCancel }: EditNodeDialogProps) {
   const [title, setTitle] = useState(initialTitle);
 
   // 每次打开时重置 title
@@ -42,19 +45,23 @@ export function EditNodeDialog({ open, initialTitle, onConfirm, onCancel }: Edit
     }
   };
 
+  const TITLE = kind === "subtask" ? "修改子任务名" : "修改游离节点";
+  const DESC = kind === "subtask" ? "输入新的子任务名" : "输入新的游离节点名";
+  const PH = kind === "subtask" ? "子任务名" : "节点内容";
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>修改子任务名</DialogTitle>
-          <DialogDescription>输入新的子任务名</DialogDescription>
+          <DialogTitle>{TITLE}</DialogTitle>
+          <DialogDescription>{DESC}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Input
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="子任务名"
+            placeholder={PH}
             className="mt-2"
             data-testid="edit-node-input"
             onKeyDown={(e) => {

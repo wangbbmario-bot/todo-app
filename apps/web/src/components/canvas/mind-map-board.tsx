@@ -71,6 +71,7 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   const updateSubTaskTitle = useTodoStore((s) => s.updateSubTaskTitle);
   const addFloatingNode = useTodoStore((s) => s.addFloatingNode);
   const removeFloatingNode = useTodoStore((s) => s.removeFloatingNode);
+  const updateFloatingNode = useTodoStore((s) => s.updateFloatingNode);
 
   // 初始化 + task 切换时重置
   const initial = useMemo(
@@ -132,7 +133,13 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   }, [removeFloatingNode]);
 
   // 编辑节点对话框状态
-  const [editingNode, setEditingNode] = useState<{ id: string; title: string } | null>(null);
+  // 2026-10-09：之前只支持改名子任务，floating 节点双击没反应
+  // 改成 kind + id 形态，处理子任务和游离节点两种类型
+  const [editingNode, setEditingNode] = useState<{
+    id: string;
+    title: string;
+    kind: "subtask" | "floating";
+  } | null>(null);
   const [previewingImage, setPreviewingImage] = useState<{ url: string; title: string } | null>(null);
 
   // BUG-10: 画板内 Ctrl+V 粘贴文字/图片生成游离节点
@@ -340,10 +347,21 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
 
   const handleNodeDoubleClick = useCallback(
     (_e: React.MouseEvent, node: Node) => {
+      // 子任务 → 改 subTask.title
       if (node.type === "subtask") {
         setEditingNode({
           id: node.id,
           title: (node.data as SubTaskNodeData).title,
+          kind: "subtask",
+        });
+        return;
+      }
+      // 游离节点（文字/图片）→ 改 floatingNode.title
+      if (node.type === "floating") {
+        setEditingNode({
+          id: node.id,
+          title: (node.data as FloatingNodeData).title,
+          kind: "floating",
         });
       }
     },
@@ -352,12 +370,15 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
 
   const handleConfirmEdit = useCallback(
     (newTitle: string) => {
-      if (editingNode) {
+      if (!editingNode) return;
+      if (editingNode.kind === "subtask") {
         updateSubTaskTitle(editingNode.id, newTitle);
-        setEditingNode(null);
+      } else if (editingNode.kind === "floating") {
+        updateFloatingNode(editingNode.id, { title: newTitle });
       }
+      setEditingNode(null);
     },
-    [editingNode, updateSubTaskTitle],
+    [editingNode, updateSubTaskTitle, updateFloatingNode],
   );
 
   return (
@@ -410,6 +431,7 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
       <EditNodeDialog
         open={editingNode !== null}
         initialTitle={editingNode?.title ?? ""}
+        kind={editingNode?.kind ?? "subtask"}
         onConfirm={handleConfirmEdit}
         onCancel={() => setEditingNode(null)}
       />

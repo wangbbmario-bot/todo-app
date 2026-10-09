@@ -73,7 +73,8 @@ export function computeInitialLayout(
   // 游离节点：BUG-15(z2-15) 按 task 隔离 — 只渲染属于当前 task 的游离节点
   // 兼容历史数据：taskId 为 null/undefined 也当作当前 task 的（早期未做隔离）
   const floatNodes: Node<FloatingNodeData>[] = floatingNodes
-    .filter((fn) => fn.taskId == null || fn.taskId === task.id)
+    // 2026-10-09：还要排除软删节点（deletedAt 非空）
+    .filter((fn) => (fn.taskId == null || fn.taskId === task.id) && !fn.deletedAt)
     .map((fn) => ({
       id: fn.id,
       type: "floating",

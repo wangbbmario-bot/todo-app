@@ -500,6 +500,8 @@ export const useTasksForList = (listId: string | null) =>
       if (!listId) return [] as Task[];
       return s.tasks
         .filter((t) => {
+          // 2026-10-09：排除软删节点（deletedAt 非空）
+          if (t.deletedAt) return false;
           // 已完成区段：跨所有 list，显示所有 status=DONE 的任务
           if (listId === "list-done") return t.status === "DONE";
           // 垃圾桶区段：跨所有 list，显示所有 status=CANCELLED 的任务

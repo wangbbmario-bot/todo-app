@@ -142,6 +142,23 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   } | null>(null);
   const [previewingImage, setPreviewingImage] = useState<{ url: string; title: string } | null>(null);
 
+  // 2026-10-09：阻止浏览器对 Backspace 的"退回上一页"默认行为
+  // 不阻止 input/textarea 里的 Backspace（让用户正常删字符）
+  // React Flow 的 deleteKeyCode 仍会处理节点删除
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Backspace") return;
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      // 不阻止 input/textarea/contenteditable 里的 Backspace（用户要删字符）
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      e.preventDefault();
+    };
+    // capture: true 确保在浏览器默认行为（history.back）前触发
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true } as EventListenerOptions);
+  }, []);
+
   // BUG-10: 画板内 Ctrl+V 粘贴文字/图片生成游离节点
   const boardRef = useRef<HTMLDivElement>(null);
   const floatingNodesRef = useRef(floatingNodes);

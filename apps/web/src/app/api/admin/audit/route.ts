@@ -14,7 +14,9 @@ export const GET = withAdmin(async ({ req }) => {
   const action = url.searchParams.get("action");
   const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), 200);
 
-  const where: Record<string, unknown> = { deletedAt: null };
+  // AuditLog 模型没有 deletedAt 字段（append-only，不软删）
+  // 修复之前代码 "where: { deletedAt: null }" 报 unknown field 500 的 bug
+  const where: Record<string, unknown> = {};
   if (userId) where.userId = userId;
   if (action) where.action = action;
 

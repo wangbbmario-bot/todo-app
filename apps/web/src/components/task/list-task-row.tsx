@@ -168,5 +168,5 @@ function endOfDay(daysFromNow: number): string {
   return d.toISOString();
 }
 
-// 仅导出 QuickDueOptions 供其他场景复用（如果需要）
-export { QuickDueOptions, formatTimeLabel };
+// 仅导出 QuickDueOptions / endOfDay / formatTimeLabel 供其他场景复用
+export { QuickDueOptions, endOfDay, formatTimeLabel };

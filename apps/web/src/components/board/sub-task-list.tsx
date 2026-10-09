@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
-import { Check, Plus, Trash2, Calendar, X } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DueDatePicker } from "@/components/due-date-picker";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -18,15 +19,15 @@ import {
 } from "@/components/ui/context-menu";
 import { useTodoStore } from "@/lib/stores/todo-store";
 import type { SubTask } from "@/lib/types";
+// 2026-10-09：复用父任务的 QuickDueOptions 选项（今天/明天/一周后/清除）
+import { QuickDueOptions } from "@/components/task/list-task-row";
 
 /**
  * SubTaskList - 子任务列表（画板上方）
  *
- * 显示当前任务的子任务，支持：
- * - 完成切换
- * - 添加新子任务（回车提交）
- * - 右键设置截止日期（2026-10-09 加）
- * - 滚动（多了有滚动条）
+ * 2026-10-09：截止日期逻辑与父任务（list-task-row）完全一致：
+ * - 右键 → 弹出菜单 → 设置截止日期（今天/明天/一周后/清除）
+ * - 截止日期徽章用 DueDatePicker 组件（与父任务同样的日历图标 + 相对时间）
  */
 
 interface SubTaskListProps {
@@ -35,7 +36,6 @@ interface SubTaskListProps {
   onToggle: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
-  // 2026-10-09：子任务截止日期
   onSetDueAt: (id: string, dueAt: string | null) => void;
 }
 
@@ -126,7 +126,6 @@ function SubTaskItem({
   onToggle: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
-  // 2026-10-09
   onSetDueAt: (dueAt: string | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -141,7 +140,6 @@ function SubTaskItem({
   }, [editing]);
 
   const handleStartEdit = (e: React.MouseEvent) => {
-    // BUG-7: 单击名称进入编辑
     e.stopPropagation();
     setDraft(sub.title);
     setEditing(true);
@@ -165,17 +163,6 @@ function SubTaskItem({
       setEditing(false);
     }
   };
-
-  // 2026-10-09：截止日期快捷选项
-  const endOfDay = (offset: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    d.setHours(23, 59, 59, 0);
-    return d.toISOString();
-  };
-  const dueDate = sub.dueAt ? new Date(sub.dueAt) : null;
-  const isOverdue = dueDate && !sub.completed && dueDate.getTime() < Date.now();
-  const isDueSoon = dueDate && !sub.completed && !isOverdue && dueDate.getTime() - Date.now() < 24 * 60 * 60 * 1000;
 
   return (
     <ContextMenu>
@@ -224,22 +211,14 @@ function SubTaskItem({
               {sub.title || <span className="text-muted-foreground">单击修改名称</span>}
             </span>
           )}
-          {/* 2026-10-09：截止日期徽章（红=过期、黄=快到期、灰=正常） */}
-          {dueDate && (
-            <span
-              className={cn(
-                "shrink-0 rounded px-1 text-[10px]",
-                isOverdue && "bg-red-100 text-red-700",
-                isDueSoon && "bg-yellow-100 text-yellow-700",
-                !isOverdue && !isDueSoon && "text-muted-foreground",
-              )}
-              title={`截止 ${dueDate.toLocaleString("zh-CN")}`}
-              data-testid="sub-task-due"
-            >
-              {`${dueDate.getMonth() + 1}/${dueDate.getDate()}`}
-            </span>
-          )}
-          {/* BUG-9 (z1-3 第三轮)：垃圾桶按钮移到子任务列表行，hover 显示，点一下直接删除（不再二次确认） */}
+          {/* 2026-10-09：与父任务统一，用 DueDatePicker 组件（compact 模式：日历图标 + 相对时间） */}
+          <DueDatePicker
+            value={sub.dueAt}
+            onChange={onSetDueAt}
+            compact
+            className="opacity-0 group-hover:opacity-100"
+            data-testid="sub-task-due-picker"
+          />
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -253,7 +232,7 @@ function SubTaskItem({
           </button>
         </div>
       </ContextMenuTrigger>
-      {/* 2026-10-09：右键子任务设置截止日期 */}
+      {/* 2026-10-09：右键菜单与父任务完全一致（QuickDueOptions 共享） */}
       <ContextMenuContent className="text-xs">
         <ContextMenuItem onSelect={() => onToggle()}>
           {sub.completed ? "标记为未完成" : "标记为完成"}
@@ -264,33 +243,10 @@ function SubTaskItem({
         <ContextMenuSeparator />
         <ContextMenuSub>
           <ContextMenuSubTrigger data-testid="sub-task-set-due">
-            <Calendar className="mr-1.5 h-3 w-3" />
             设置截止日期
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
-            <ContextMenuItem onSelect={() => onSetDueAt(endOfDay(0))}>
-              今天
-            </ContextMenuItem>
-            <ContextMenuItem
-              onSelect={() => onSetDueAt(endOfDay(1))}
-              data-testid="sub-task-set-due-tomorrow"
-            >
-              明天
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={() => onSetDueAt(endOfDay(3))}>
-              3 天后
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={() => onSetDueAt(endOfDay(7))}>
-              一周后
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onSelect={() => onSetDueAt(null)}
-              className="text-destructive focus:text-destructive"
-            >
-              <X className="mr-1.5 h-3 w-3" />
-              清除截止日期
-            </ContextMenuItem>
+            <QuickDueOptions onSetDueAt={onSetDueAt} />
           </ContextMenuSubContent>
         </ContextMenuSub>
         <ContextMenuSeparator />

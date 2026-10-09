@@ -28,6 +28,14 @@ export const GET = withAdmin(async ({ params }) => {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
 
+  // 4 个数据统计并行查（之前版本漏写 → admin/users/[id] 页面报错 "This page couldn't load"）
+  const [lists, tasks, subTasks, floatingNodes] = await Promise.all([
+    prisma.list.count({ where: { userId: id, deletedAt: null } }),
+    prisma.task.count({ where: { userId: id, deletedAt: null } }),
+    prisma.subTask.count({ where: { userId: id, deletedAt: null } }),
+    prisma.floatingNode.count({ where: { userId: id, deletedAt: null } }),
+  ]);
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -37,6 +45,7 @@ export const GET = withAdmin(async ({ params }) => {
       timezone: user.timezone,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      stats: { lists, tasks, subTasks, floatingNodes },
     },
   });
 });

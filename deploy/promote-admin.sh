@@ -1,22 +1,26 @@
 #!/bin/bash
 # =====================================================
-# promote-admin.sh - 把某个用户升级为 ADMIN
-# 用法：./promote-admin.sh user@example.com
+# promote-admin.sh - 把某个手机号的用户升级为 ADMIN
+# 用法：./promote-admin.sh 13800001234
+# 兼容 2026-10-08 删 email 字段后的版本（用 phone 定位）
 # =====================================================
 set -e
 
-EMAIL="${1:-}"
+PHONE="${1:-}"
 
-if [ -z "$EMAIL" ]; then
-  echo "用法: $0 <email>"
-  echo "示例: $0 admin@yourdomain.com"
+if [ -z "$PHONE" ]; then
+  echo "用法: $0 <phone>"
+  echo "示例: $0 13800001234"
   exit 1
 fi
 
-# 在 server 上跑（需要 docker compose 权限）
 docker exec todo-db psql -U todo -d todo_prod -c \
-  "UPDATE \"User\" SET role='ADMIN', \"updatedAt\" = CURRENT_TIMESTAMP WHERE email = '$EMAIL';"
+  "UPDATE \"User\" SET role='ADMIN', \"updatedAt\" = CURRENT_TIMESTAMP WHERE phone = '$PHONE';"
 
 echo ""
-echo "✅ 已将 $EMAIL 升级为 ADMIN"
-echo "用户需重新登录才能生效（清 cookie 或点退出登录）"
+echo "查询结果："
+docker exec todo-db psql -U todo -d todo_prod -c \
+  "SELECT phone, role, \"updatedAt\" FROM \"User\" WHERE phone = '$PHONE';"
+
+echo ""
+echo "降级（取消 ADMIN）：把 'ADMIN' 改成 'MEMBER' 即可"

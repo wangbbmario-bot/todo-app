@@ -447,7 +447,8 @@ export const useTodoStore = create<TodoState>()(
 // 注意：所有返回新数组/对象的 selector 必须用 useShallow 包装，
 // 否则 React 18 会报 "getSnapshot should be cached" 死循环。
 export const useUserLists = () =>
-  useTodoStore(useShallow((s) => s.lists.filter((l) => l.kind === "LIST")));
+  // 2026-10-09：加上 !l.deletedAt 排除软删清单
+  useTodoStore(useShallow((s) => s.lists.filter((l) => l.kind === "LIST" && !l.deletedAt)));
 
 /**
  * 系统区段虚拟 list：已完成 + 垃圾桶
@@ -533,15 +534,19 @@ export const useSelectedTask = () =>
 export const useSubTasksForTask = (taskId: string | null) =>
   useTodoStore(
     useShallow((s) =>
-      s.subTasks.filter((s) => s.taskId === taskId).sort((a, b) => a.order - b.order),
+      // 2026-10-09：加上 !s.deletedAt 排除软删子任务
+      s.subTasks.filter((s) => s.taskId === taskId && !s.deletedAt).sort((a, b) => a.order - b.order),
     ),
   );
 
 export const useTaskCountForList = (listId: string) =>
   useTodoStore((s) => {
-    if (listId === "list-done") return s.tasks.filter((t) => t.status === "DONE").length;
-    if (listId === "list-trash") return s.tasks.filter((t) => t.status === "CANCELLED").length;
+    // 2026-10-09：加上 !t.deletedAt 排除软删任务
+    if (listId === "list-done")
+      return s.tasks.filter((t) => t.status === "DONE" && !t.deletedAt).length;
+    if (listId === "list-trash")
+      return s.tasks.filter((t) => t.status === "CANCELLED" && !t.deletedAt).length;
     return s.tasks.filter(
-      (t) => t.listId === listId && t.status !== "DONE" && t.status !== "CANCELLED",
+      (t) => t.listId === listId && t.status !== "DONE" && t.status !== "CANCELLED" && !t.deletedAt,
     ).length;
   });

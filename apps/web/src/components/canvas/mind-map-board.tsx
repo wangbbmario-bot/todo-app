@@ -338,7 +338,8 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
           setPreviewingImage({ url: data.imageUrl, title: fn.title });
         } else {
           // 文字节点 → 单击改名
-          setEditingNode({ id: fn.id, title: fn.title });
+          // 2026-10-09 修：之前没传 kind 字段，handleConfirmEdit 的 if/else 都不匹配
+          setEditingNode({ id: fn.id, title: fn.title, kind: "floating" });
         }
       }
     },

@@ -176,6 +176,8 @@ model SubTask {
   title     String
   completed Boolean  @default(false)
   order     Int      @default(0)
+  // 2026-10-09：子任务也支持截止日期（与 Task 一致）
+  dueAt     DateTime?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

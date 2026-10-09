@@ -43,7 +43,8 @@ export interface SubTask {
   completed: boolean;
   order: number;
   createdAt: string;
-  deletedAt?: string | null;  // 2026-10-09：软删除时间戳
+  dueAt?: string;            // 2026-10-09：子任务也支持截止日期
+  deletedAt?: string | null; // 2026-10-09：软删除时间戳
 }
 
 /**

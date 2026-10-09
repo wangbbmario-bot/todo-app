@@ -54,6 +54,7 @@ type SyncData = {
     completed: boolean;
     order: number;
     createdAt: string;
+    dueAt?: string;          // 2026-10-09：子任务截止日期
     deletedAt?: string | null;
   }>;
   floatingNodes: Array<{
@@ -180,6 +181,8 @@ export async function POST(req: Request) {
           title: s.title,
           completed: s.completed,
           order: s.order,
+          // 2026-10-09：子任务截止日期
+          dueAt: s.dueAt ? new Date(s.dueAt) : null,
           createdAt: new Date(s.createdAt),
           updatedAt: new Date(s.createdAt),
           deletedAt: s.deletedAt ? new Date(s.deletedAt) : null,
@@ -189,6 +192,8 @@ export async function POST(req: Request) {
           title: s.title,
           completed: s.completed,
           order: s.order,
+          // 2026-10-09：子任务截止日期
+          dueAt: s.dueAt ? new Date(s.dueAt) : null,
           updatedAt: new Date(),
           deletedAt: s.deletedAt ? new Date(s.deletedAt) : null,
         },

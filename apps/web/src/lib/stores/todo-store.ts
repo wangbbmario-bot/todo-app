@@ -55,6 +55,8 @@ interface TodoState {
   toggleSubTask: (id: string) => void;
   removeSubTask: (id: string) => void;
   updateSubTaskTitle: (id: string, title: string) => void;
+  // 2026-10-09：子任务也支持截止日期
+  setSubTaskDueAt: (id: string, dueAt: string | null) => void;
   // 游离节点（画板上独立节点，BUG-9/BUG-10）
   addFloatingNode: (node: Omit<FloatingNode, "id" | "createdAt">) => string;
   removeFloatingNode: (id: string) => void;
@@ -361,6 +363,20 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           subTasks: state.subTasks.map((s) =>
             s.id === id ? { ...s, title } : s,
+          ),
+        }));
+      },
+
+      setSubTaskDueAt: (id, dueAt) => {
+        set((state) => ({
+          subTasks: state.subTasks.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  dueAt: dueAt ?? undefined,
+                  updatedAt: new Date().toISOString(),
+                }
+              : s,
           ),
         }));
       },

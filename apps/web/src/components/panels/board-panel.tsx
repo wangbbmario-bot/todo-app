@@ -30,6 +30,8 @@ export function BoardPanel() {
   const toggleSubTask = useTodoStore((s) => s.toggleSubTask);
   const updateSubTaskTitle = useTodoStore((s) => s.updateSubTaskTitle);
   const removeSubTask = useTodoStore((s) => s.removeSubTask);
+  // 2026-10-09：子任务也支持截止日期
+  const setSubTaskDueAt = useTodoStore((s) => s.setSubTaskDueAt);
   const layout = useTodoStore((s) => s.layout);
   const setLayout = useTodoStore((s) => s.setLayout);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +113,8 @@ export function BoardPanel() {
             onToggle={toggleSubTask}
             onRename={(id, title) => updateSubTaskTitle(id, title)}
             onDelete={(id) => removeSubTask(id)}
+            // 2026-10-09：子任务截止日期
+            onSetDueAt={(id, dueAt) => setSubTaskDueAt(id, dueAt)}
           />
         </Panel>
 

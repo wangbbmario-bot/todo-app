@@ -115,8 +115,13 @@ export const useTodoStore = create<TodoState>()(
 
       deleteList: (id) => {
         // 清单下的任务移到垃圾桶
+        // 2026-10-09：之前 filter 删本地导致软删不生效，改为设 deletedAt
         set((state) => ({
-          lists: state.lists.filter((l) => l.id !== id),
+          lists: state.lists.map((l) =>
+            l.id === id
+              ? { ...l, deletedAt: new Date().toISOString() }
+              : l,
+          ),
           tasks: state.tasks.map((t) =>
             t.listId === id
               ? { ...t, status: "CANCELLED" as const, listId: "list-trash", updatedAt: new Date().toISOString() }
@@ -342,8 +347,13 @@ export const useTodoStore = create<TodoState>()(
       },
 
       removeSubTask: (id) => {
+        // 2026-10-09：之前 filter 删本地导致软删不生效，改为设 deletedAt
         set((state) => ({
-          subTasks: state.subTasks.filter((s) => s.id !== id),
+          subTasks: state.subTasks.map((s) =>
+            s.id === id
+              ? { ...s, deletedAt: new Date().toISOString() }
+              : s,
+          ),
         }));
       },
 

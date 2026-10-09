@@ -18,6 +18,7 @@ export interface List {
   pinned: boolean;         // 是否置顶
   createdAt: string;       // ISO
   updatedAt: string;
+  deletedAt?: string | null;  // 2026-10-09：软删除时间戳，sync 必须带上
 }
 
 export interface Task {
@@ -32,6 +33,7 @@ export interface Task {
   completedAt?: string;    // ISO
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;  // 2026-10-09：软删除时间戳
 }
 
 export interface SubTask {
@@ -41,6 +43,7 @@ export interface SubTask {
   completed: boolean;
   order: number;
   createdAt: string;
+  deletedAt?: string | null;  // 2026-10-09：软删除时间戳
 }
 
 /**
@@ -60,6 +63,7 @@ export interface FloatingNode {
   height?: number;
   taskId?: string | null; // BUG-15(z2-15)：所属任务（用于隔离）
   createdAt: string;
+  deletedAt?: string | null;  // 2026-10-09：软删除时间戳
 }
 
 export interface PanelLayout {

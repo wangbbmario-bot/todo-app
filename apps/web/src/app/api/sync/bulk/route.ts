@@ -30,6 +30,7 @@ type SyncData = {
     pinned: boolean;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string | null;  // 2026-10-09：软删除时间戳
   }>;
   tasks: Array<{
     id: string;
@@ -44,6 +45,7 @@ type SyncData = {
     completedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string | null;
   }>;
   subTasks: Array<{
     id: string;
@@ -52,6 +54,7 @@ type SyncData = {
     completed: boolean;
     order: number;
     createdAt: string;
+    deletedAt?: string | null;
   }>;
   floatingNodes: Array<{
     id: string;
@@ -64,6 +67,7 @@ type SyncData = {
     width: number | null;
     height: number | null;
     createdAt: string;
+    deletedAt?: string | null;
   }>;
 };
 
@@ -103,6 +107,8 @@ export async function POST(req: Request) {
           pinned: l.pinned,
           createdAt: new Date(l.createdAt),
           updatedAt: new Date(l.updatedAt),
+          // 2026-10-09：create 也带 deletedAt（软删同步用）
+          deletedAt: l.deletedAt ? new Date(l.deletedAt) : null,
         },
         update: {
           kind: l.kind as "LIST" | "DONE" | "TRASH",
@@ -111,8 +117,8 @@ export async function POST(req: Request) {
           order: l.order,
           pinned: l.pinned,
           updatedAt: new Date(l.updatedAt),
-          // 关键：upsert 默认不会清 deletedAt（如果之前软删过），要显式清
-          deletedAt: null,
+          // 2026-10-09 修：之前硬编码 null → 删除"复活"。改用 payload 值
+          deletedAt: l.deletedAt ? new Date(l.deletedAt) : null,
         },
       }),
     );
@@ -140,6 +146,7 @@ export async function POST(req: Request) {
           completedAt: t.completedAt ? new Date(t.completedAt) : null,
           createdAt: new Date(t.createdAt),
           updatedAt: new Date(t.updatedAt),
+          deletedAt: t.deletedAt ? new Date(t.deletedAt) : null,
         },
         update: {
           listId: t.listId,
@@ -157,7 +164,7 @@ export async function POST(req: Request) {
           dueAt: t.dueAt ? new Date(t.dueAt) : null,
           completedAt: t.completedAt ? new Date(t.completedAt) : null,
           updatedAt: new Date(t.updatedAt),
-          deletedAt: null,
+          deletedAt: t.deletedAt ? new Date(t.deletedAt) : null,
         },
       }),
     );
@@ -175,6 +182,7 @@ export async function POST(req: Request) {
           order: s.order,
           createdAt: new Date(s.createdAt),
           updatedAt: new Date(s.createdAt),
+          deletedAt: s.deletedAt ? new Date(s.deletedAt) : null,
         },
         update: {
           taskId: s.taskId,
@@ -182,7 +190,7 @@ export async function POST(req: Request) {
           completed: s.completed,
           order: s.order,
           updatedAt: new Date(),
-          deletedAt: null,
+          deletedAt: s.deletedAt ? new Date(s.deletedAt) : null,
         },
       }),
     );
@@ -206,6 +214,7 @@ export async function POST(req: Request) {
           height: n.height,
           createdAt: new Date(n.createdAt),
           updatedAt: new Date(n.createdAt),
+          deletedAt: n.deletedAt ? new Date(n.deletedAt) : null,
         },
         update: {
           taskId: n.taskId ?? null,
@@ -217,7 +226,7 @@ export async function POST(req: Request) {
           width: n.width,
           height: n.height,
           updatedAt: new Date(),
-          deletedAt: null,
+          deletedAt: n.deletedAt ? new Date(n.deletedAt) : null,
         },
       }),
     );

@@ -367,8 +367,15 @@ export const useTodoStore = create<TodoState>()(
         return id;
       },
       removeFloatingNode: (id) => {
+        // 2026-10-09 修：之前 filter 删除本地 → debounced push 不包含 →
+        // server 不知道该删 → 下次 GET 返 deletedAt=null → "复活"
+        // 现在改用软删除：保留节点 + 设 deletedAt，下次 push 携带，server 软删
         set((state) => ({
-          floatingNodes: state.floatingNodes.filter((n) => n.id !== id),
+          floatingNodes: state.floatingNodes.map((n) =>
+            n.id === id
+              ? { ...n, deletedAt: new Date().toISOString() }
+              : n
+          ),
         }));
       },
       updateFloatingNode: (id, patch) => {

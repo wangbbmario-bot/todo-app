@@ -21,6 +21,8 @@ import { useTodoStore } from "@/lib/stores/todo-store";
 import type { SubTask } from "@/lib/types";
 // 2026-10-09：复用父任务的 QuickDueOptions 选项（今天/明天/一周后/清除）
 import { QuickDueOptions } from "@/components/task/list-task-row";
+// 2026-10-10：截止日期徽章（与父任务 DueDateBadgeInline 一致）
+import { DueDateBadgeInline } from "@/components/task/task-row";
 
 /**
  * SubTaskList - 子任务列表（画板上方）
@@ -199,17 +201,21 @@ function SubTaskItem({
               className="h-5 flex-1 px-1 text-xs"
             />
           ) : (
-            <span
-              className={cn(
-                "flex-1 cursor-text truncate rounded px-1 hover:bg-background",
-                sub.completed && "line-through",
-              )}
-              data-testid="sub-task-title"
-              onClick={handleStartEdit}
-              title="单击修改名称"
-            >
-              {sub.title || <span className="text-muted-foreground">单击修改名称</span>}
-            </span>
+            <>
+              <span
+                className={cn(
+                  "flex-1 cursor-text truncate rounded px-1 hover:bg-background",
+                  sub.completed && "line-through",
+                )}
+                data-testid="sub-task-title"
+                onClick={handleStartEdit}
+                title="单击修改名称"
+              >
+                {sub.title || <span className="text-muted-foreground">单击修改名称</span>}
+              </span>
+              {/* 2026-10-10：截止日期徽章（一直显示，跟父任务 DueDateBadgeInline 一样） */}
+              {sub.dueAt && <DueDateBadgeInline dueAt={sub.dueAt} data-testid="sub-task-due-badge" />}
+            </>
           )}
           {/* 2026-10-09：与父任务统一，用 DueDatePicker 组件（compact 模式：日历图标 + 相对时间） */}
           <DueDatePicker

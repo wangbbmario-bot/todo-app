@@ -111,14 +111,25 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   // 节点变化（拖动、选中、删除）— 通过 React Flow applyNodeChanges
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds));
-    // 同步 floating 节点拖动位置回 store
+    // 同步 floating 节点拖动位置 + 调整大小回 store
     changes.forEach((ch) => {
-      if (ch.type === "position" && ch.position && ch.id?.startsWith("float-")) {
-        useTodoStore.setState((state) => ({
-          floatingNodes: state.floatingNodes.map((n) =>
-            n.id === ch.id ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
-          ),
-        }));
+      if (ch.id?.startsWith("float-")) {
+        if (ch.type === "position" && ch.position) {
+          useTodoStore.setState((state) => ({
+            floatingNodes: state.floatingNodes.map((n) =>
+              n.id === ch.id ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
+            ),
+          }));
+        } else if (ch.type === "resize" && "width" in ch && "height" in ch) {
+          // 2026-10-20：便利贴大小调整
+          useTodoStore.setState((state) => ({
+            floatingNodes: state.floatingNodes.map((n) =>
+              n.id === ch.id && ch.width != null && ch.height != null
+                ? { ...n, width: ch.width, height: ch.height }
+                : n,
+            ),
+          }));
+        }
       }
     });
   }, []);
@@ -299,6 +310,8 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
       taskId: task.id,  // BUG-15(z2-15)：绑定到当前任务，切换任务时不串
       x: 60,                                    // 父任务左侧一点
       y: -120 - (floatingNodes.length % 3) * 60, // 父任务上方，错开避免重叠
+      width: 220,                                // 2026-10-20：便利贴默认尺寸
+      height: 140,
     });
   }, [addFloatingNode, floatingNodes.length, task.id]);
 

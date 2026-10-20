@@ -18,6 +18,10 @@ export interface FloatingNodeData {
   title: string;
   kind: "TEXT" | "IMAGE";
   imageUrl?: string;
+  width?: number;
+  height?: number;
+  // 2026-10-20：便利贴编辑回调（更新 title/width/height 到 React Flow store）
+  onChange?: (next: { title?: string; width?: number; height?: number }) => void;
   [key: string]: unknown;
 }
 

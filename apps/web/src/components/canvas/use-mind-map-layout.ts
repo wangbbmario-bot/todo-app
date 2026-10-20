@@ -83,6 +83,9 @@ export function computeInitialLayout(
         title: fn.title,
         kind: fn.kind,
         imageUrl: fn.imageUrl,
+        // 2026-10-20：把 宽度/高度 也传给节点（resize 持久化）
+        width: fn.width,
+        height: fn.height,
       },
     }));
 

@@ -35,7 +35,6 @@ juststartit.cn, www.juststartit.cn {
 # HTTP 入口：nip.io / IP（备案是给 juststartit.cn 用的，nip.io 走 IP 不受影响）
 http://47.107.46.78.nip.io, http://47.107.46.78 {
 	encode zstd gzip
-	auto_https off
 
 	# /uploads/* 静态文件
 	handle /uploads/* {

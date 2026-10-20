@@ -307,13 +307,21 @@ function MobileTabButton({
 function TaskPanelWithAutoSelect() {
   const selectedList = useSelectedList();
   const selectList = useTodoStore((s) => s.selectList);
-  const userLists = useTodoStore((s) => s.lists.filter((l) => l.kind === "LIST"));
 
+  // 2026-10-20：mobile 任务 tab 之前一直白屏崩溃的根因
+  //   旧代码：const userLists = useTodoStore((s) => s.lists.filter(...))
+  //   selector 每次返回新数组 → 组件每次渲染引用都变
+  //   → useEffect([selectedList, userLists, selectList]) 反复触发
+  //   → selectList 再 setState → 再渲染 → 死循环 → 浏览器强制 unload
+  // 修法：拿数据用 getState() 一次性快照，且不放进 useEffect 依赖。
   useEffect(() => {
-    if (!selectedList && userLists.length > 0) {
-      selectList(userLists[0].id);
+    if (!selectedList) {
+      const firstList = useTodoStore
+        .getState()
+        .lists.find((l) => l.kind === "LIST");
+      if (firstList) selectList(firstList.id);
     }
-  }, [selectedList, userLists, selectList]);
+  }, [selectedList, selectList]);
 
   return <TaskPanel />;
 }

@@ -221,10 +221,10 @@ export function TaskPanel() {
                         onRename={(title) => updateTask(task.id, { title })}
                         onSetPriority={(p) => setTaskPriority(task.id, p)}
                         onSetDueAt={(d) => setTaskDueAt(task.id, d)}
-                        // 2026-10-20：按 Enter → 在画板建新子任务
+                        // 2026-10-20：在父任务名上按 Enter → 在当前列表下创建新任务
                         onAddSubtask={() => {
-                          addSubTask(task.id, "");
-                          selectTask(task.id);
+                          if (!selectedList || selectedList.kind !== "LIST") return;
+                          createTask(selectedList.id, "", "LOW");
                         }}
                       />
                     ))}

@@ -54,7 +54,11 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         if (editing) commit();
       }}
       className={cn(
-        "group relative overflow-hidden rounded-lg shadow-sm",
+        // 2026-10-20：这里绝对不能加 overflow-hidden
+        // React Flow 的 resize 拖手定位在节点边框「外侧」（bottom:-4px / right:-4px），
+        // 一旦 overflow:hidden 就把拖手裁掉 → 看不见也点不到 → 拖拽彻底失效。
+        // 内容不溢出改由内容区自己负责（下面 textarea/div 都是 h-full + overflow-y-auto）。
+        "group relative rounded-lg shadow-sm",
         // 2026-10-20：去掉 max-w-[400px]
         // 它会盖住 NodeResizer 的 maxWidth（600），导致"往大拖没反应"
         // 下限交给 style.minWidth，与 NodeResizer minWidth 保持一致
@@ -127,15 +131,16 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
           className="block h-full w-full resize-none overflow-y-auto bg-transparent outline-none px-3 py-2 text-sm leading-relaxed text-amber-950 placeholder:text-amber-400"
         />
       ) : (
-        <div className="h-full overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-amber-950">
+        <div className="flex h-full flex-col overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-amber-950">
           {isImage && d.imageUrl ? (
-            <div className="mb-2">
+            // flex-1 + min-h-0：图片区占满剩余高度，img 的 max-h-full 才有确定的参照
+            <div className="mb-2 flex min-h-0 flex-1 items-start justify-center">
               <img
                 src={d.imageUrl}
                 alt={d.title}
                 // 2026-10-20：跟着便利贴尺寸走（原来写死 160px，
-                // 便利贴拖小后图片会被 overflow-hidden 裁掉）
-                className="block max-h-full w-auto rounded object-contain"
+                // 便利贴拖小后图片装不下会被裁）
+                className="block max-h-full max-w-full rounded object-contain"
                 draggable={false}
               />
             </div>

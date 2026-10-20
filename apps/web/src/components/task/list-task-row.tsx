@@ -40,6 +40,9 @@ interface ListTaskRowProps {
   onSetDueAt: (dueAt: string | null) => void;
   // 2026-10-20：用户在任务名按 Enter → 在当前任务下创建新子任务
   onAddSubtask?: () => void;
+  // 2026-10-20：新建同级任务后自动进入编辑态
+  autoFocus?: boolean;
+  onFocused?: () => void;
 }
 
 export function ListTaskRow({
@@ -52,6 +55,8 @@ export function ListTaskRow({
   onSetPriority,
   onSetDueAt,
   onAddSubtask,
+  autoFocus,
+  onFocused,
 }: ListTaskRowProps) {
   return (
     <ContextMenu>
@@ -62,8 +67,10 @@ export function ListTaskRow({
             isSelected={isSelected}
             onClick={onSelect}
             onRename={onRename}
-            // 2026-10-20：Enter 后建新子任务
+            // 2026-10-20：Enter 后建新同级任务
             onAddSubtask={onAddSubtask}
+            autoFocus={autoFocus}
+            onFocused={onFocused}
             rightChildren={
               <>
                 {/* BUG-2: 截止日期选择器（hover 显示）移到任务末尾 */}

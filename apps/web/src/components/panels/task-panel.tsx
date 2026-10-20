@@ -48,6 +48,8 @@ export function TaskPanel() {
   const clearTrash = useTodoStore((s) => s.clearTrash);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  // 2026-10-20：Enter on parent task → 聚焦新建的同级任务
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
 
   const handleAddTask = () => {
     if (!selectedList || selectedList.kind !== "LIST") return;
@@ -221,11 +223,14 @@ export function TaskPanel() {
                         onRename={(title) => updateTask(task.id, { title })}
                         onSetPriority={(p) => setTaskPriority(task.id, p)}
                         onSetDueAt={(d) => setTaskDueAt(task.id, d)}
-                        // 2026-10-20：在父任务名上按 Enter → 在当前列表下创建新任务
+                        // 2026-10-20：在父任务名上按 Enter → 创建同级任务 + 聚焦新任务
                         onAddSubtask={() => {
                           if (!selectedList || selectedList.kind !== "LIST") return;
-                          createTask(selectedList.id, "", "LOW");
+                          const newId = createTask(selectedList.id, "", "LOW");
+                          setPendingFocusId(newId);
                         }}
+                        autoFocus={pendingFocusId === task.id}
+                        onFocused={() => setPendingFocusId(null)}
                       />
                     ))}
                   </div>

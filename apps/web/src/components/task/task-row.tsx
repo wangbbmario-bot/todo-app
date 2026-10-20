@@ -29,6 +29,9 @@ interface TaskRowProps {
   rightChildren?: React.ReactNode; // 右侧插槽
   // 2026-10-20：用户在任务名按 Enter → 在画板新建一个子任务
   onAddSubtask?: () => void;
+  // 2026-10-20：自动进入编辑模式 + Enter 同步处理
+  autoFocus?: boolean;
+  onFocused?: () => void;
 }
 
 export function TaskRow({
@@ -40,6 +43,8 @@ export function TaskRow({
   children,
   rightChildren,
   onAddSubtask,
+  autoFocus,
+  onFocused,
 }: TaskRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
@@ -54,6 +59,15 @@ export function TaskRow({
       inputRef.current.setSelectionRange(len, len);
     }
   }, [isEditing]);
+
+  // 2026-10-20：autoFocus prop 触发时自动进入编辑态，通知 parent 清理标记
+  useEffect(() => {
+    if (autoFocus && !isEditing) {
+      setDraft(task.title);
+      setIsEditing(true);
+      onFocused?.();
+    }
+  }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startEdit = () => {
     if (!editable) return;

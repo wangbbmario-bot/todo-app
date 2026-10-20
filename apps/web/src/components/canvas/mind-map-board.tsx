@@ -120,21 +120,15 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
               n.id === ch.id ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
             ),
           }));
-        } else if (ch.type === "dimensions") {
-          // 2026-10-20：便利贴大小调整
-          // React Flow v12 的 NodeResizer 发的是 type:"dimensions"，
-          // 宽高嵌在 ch.dimensions 里（不是 ch.width / ch.height，也不是 type:"resize"）
-          // 只在 resizing === false（松手）时写回 store，避免拖动过程中高频 setState
-          const dim = (ch as { dimensions?: { width?: number; height?: number } }).dimensions;
-          if (!ch.resizing && dim?.width != null && dim?.height != null) {
-            const { width, height } = dim;
-            useTodoStore.setState((state) => ({
-              floatingNodes: state.floatingNodes.map((n) =>
-                n.id === ch.id ? { ...n, width, height } : n,
-              ),
-            }));
-          }
         }
+        // 2026-10-20：便利贴尺寸【不要】在这里写回 store
+        // RF 的 NodeResizer 发的是 { type:'dimensions', resizing, dimensions:{width,height} }，
+        // 而且节点每次挂载测量时也会发一条（resizing===false）。
+        // 一旦在这里 setState 写 store → floatingNodes 换新数组
+        // → 下面 useMemo([..., floatingNodes]) 重建全部 nodes，node.measured 被清空
+        // → RF 认为节点没尺寸 → visibility:hidden → 重新测量 → 再发 change
+        // → 整个画板陷入死循环、所有节点永久不可见（画板空白）。
+        // 尺寸持久化只走 floating-node.tsx 里 NodeResizer 的 onResizeEnd（用户松手才触发一次）。
       }
     });
   }, []);

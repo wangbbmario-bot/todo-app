@@ -73,11 +73,33 @@ docker run --rm \
   " 2>&1 | tail -10
 
 echo "=== 重启容器（保留 data volumes）==="
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d 2>&1 | tail -10
+# 2026-10-20：只重建 web，不能用裸 `up -d`
+#   todo-caddy 没有 compose 标签（project/service 都是空）——它是用 docker run 手动起的，
+#   根本不在 compose project "todo" 的管理范围内。
+#   裸 `up -d` 会试图"新建" todo-caddy → 报 name already in use 中断整个 up
+#   → todo-web 被 recreate 了但没人去 start，停在 Created 状态 → 站点 502。
+#   db 归 compose 管但状态正常，不需要动；web 用 --no-deps 单独重建。
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps web 2>&1 | tail -10
+
+# Caddy 配置变更后单独 reload（它不受 compose 管理）
+if docker exec todo-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+  docker exec todo-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
+    && echo "✅ Caddy 配置已 reload"
+else
+  echo "⚠️  Caddy 配置校验失败，保持当前运行配置不变"
+fi
 
 echo "=== 等 30s 健康检查 ==="
 sleep 30
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -5
+
+# fail fast：别在 web 没起来的情况下报"Deploy 完成"
+if [ "$(docker inspect todo-web --format '{{.State.Running}}' 2>/dev/null)" != "true" ]; then
+  echo ""
+  echo "❌ Deploy 失败：todo-web 没有运行中，站点会 502"
+  docker logs --tail 30 todo-web 2>&1
+  exit 1
+fi
 
 echo ""
 echo "✅ Deploy 完成"

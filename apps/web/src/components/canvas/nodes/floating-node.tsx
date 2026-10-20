@@ -84,10 +84,12 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         maxWidth={600}
         maxHeight={500}
         lineClassName="border-amber-400"
-        // 2026-10-20：拖手 mobile 下增大到 24×24（桌面保持 12×12）
-        //   mobile first：默认 h-6 w-6 = 24×24；桌面 md+ 才缩回 12×12
-        //   否则手机屏上 12px 拖手点不到
-        handleClassName="h-6 w-6 md:h-3 md:w-3 bg-amber-400 border-amber-600 rounded"
+        // 2026-10-20：必须用 handleStyle 设宽高，不能用 Tailwind className
+        //   RF 的 ResizeControl 渲染时写 `style: { ...style, scale, ... }`，width/height 走 inline，
+        //   inline style specificity > CSS class → className 的 h-6/w-6 永远不生效（实测仍 5×5）
+        //   24×24 是 mobile 触摸目标（Apple HIG 44 但桌面不卡）；桌面也用 24 而非 12（少一处条件分支）
+        handleStyle={{ width: 24, height: 24 }}
+        handleClassName="bg-amber-400 border-2 border-amber-600 rounded"
         isVisible={true}
         onResizeEnd={(_e, params) => {
           // 兜底：直接把最终尺寸写回 store

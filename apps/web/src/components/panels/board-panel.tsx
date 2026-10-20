@@ -109,7 +109,8 @@ export function BoardPanel() {
         >
           <SubTaskList
             subTasks={subTasks}
-            onAdd={(title) => addSubTask(selectedTask.id, title)}
+            // 2026-10-20：addSubTask 现在返回新 id，SubTaskList 内部管聚焦
+            onAdd={() => addSubTask(selectedTask.id, "")}
             onToggle={toggleSubTask}
             onRename={(id, title) => updateSubTaskTitle(id, title)}
             onDelete={(id) => removeSubTask(id)}

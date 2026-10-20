@@ -27,6 +27,8 @@ interface TaskRowProps {
   onRename?: (newTitle: string) => void; // 编辑完成回调
   children?: React.ReactNode; // 左侧插槽
   rightChildren?: React.ReactNode; // 右侧插槽
+  // 2026-10-20：用户在任务名按 Enter → 在画板新建一个子任务
+  onAddSubtask?: () => void;
 }
 
 export function TaskRow({
@@ -37,16 +39,19 @@ export function TaskRow({
   onRename,
   children,
   rightChildren,
+  onAddSubtask,
 }: TaskRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 进入编辑态时聚焦 + 选中文本
+  // 进入编辑态时聚焦 + 光标定位文字末尾（不 select-all）
+  // 2026-10-20 改：之前 .select() 全选文本让用户改起来很烦
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
     }
   }, [isEditing]);
 
@@ -62,12 +67,14 @@ export function TaskRow({
     startEdit();
   };
 
-  const commit = () => {
+  const commit = (opts?: { keepEditing?: boolean }) => {
     const trimmed = draft.trim();
     if (trimmed && trimmed !== task.title) {
       onRename?.(trimmed);
     }
-    setIsEditing(false);
+    if (!opts?.keepEditing) {
+      setIsEditing(false);
+    }
   };
 
   const cancel = () => {
@@ -78,7 +85,10 @@ export function TaskRow({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      commit();
+      // 2026-10-20 改：Enter = 提交 + 触发父级建新子任务（不退出编辑态，让新子任务接管）
+      commit({ keepEditing: true });
+      onAddSubtask?.();
+      setIsEditing(false);
     } else if (e.key === "Escape") {
       e.preventDefault();
       cancel();

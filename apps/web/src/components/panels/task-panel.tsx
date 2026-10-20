@@ -43,6 +43,8 @@ export function TaskPanel() {
   const restoreTask = useTodoStore((s) => s.restoreTask);
   const permanentlyDeleteTask = useTodoStore((s) => s.permanentlyDeleteTask);
   const clearCompleted = useTodoStore((s) => s.clearCompleted);
+  // 2026-10-20：用户在任务名按 Enter 后建新子任务
+  const addSubTask = useTodoStore((s) => s.addSubTask);
   const clearTrash = useTodoStore((s) => s.clearTrash);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -219,6 +221,11 @@ export function TaskPanel() {
                         onRename={(title) => updateTask(task.id, { title })}
                         onSetPriority={(p) => setTaskPriority(task.id, p)}
                         onSetDueAt={(d) => setTaskDueAt(task.id, d)}
+                        // 2026-10-20：按 Enter → 在画板建新子任务
+                        onAddSubtask={() => {
+                          addSubTask(task.id, "");
+                          selectTask(task.id);
+                        }}
                       />
                     ))}
                   </div>

@@ -51,7 +51,7 @@ interface TodoState {
   // 布局
   setLayout: (patch: Partial<PanelLayout>) => void;
   // 子任务（画板 ↔ 列表双向同步）
-  addSubTask: (taskId: string, title: string) => void;
+  addSubTask: (taskId: string, title: string) => string;
   toggleSubTask: (id: string) => void;
   removeSubTask: (id: string) => void;
   updateSubTaskTitle: (id: string, title: string) => void;
@@ -338,6 +338,7 @@ export const useTodoStore = create<TodoState>()(
             },
           ],
         }));
+        return id;
       },
 
       toggleSubTask: (id) => {

@@ -30,14 +30,20 @@ import { DueDateBadgeInline } from "@/components/task/task-row";
  * 2026-10-09：截止日期逻辑与父任务（list-task-row）完全一致：
  * - 右键 → 弹出菜单 → 设置截止日期（今天/明天/一周后/清除）
  * - 截止日期徽章用 DueDatePicker 组件（与父任务同样的日历图标 + 相对时间）
+ *
+ * 2026-10-20：光标定末尾 + Enter 建新子任务
+ * - 点击任务名 → focus + cursor 文字末尾（不 select-all）
+ * - 按 Enter → 提交当前 + 在下面建新子任务，光标自动聚焦新子任务
  */
 
 interface SubTaskListProps {
   subTasks: SubTask[];
-  onAdd: (title: string) => void;
+  // 2026-10-20：onAdd 必须返回新建 id（用来聚焦新子任务）
+  onAdd: (title: string) => string;
   onToggle: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  // 2026-10-09：子任务截止日期
   onSetDueAt: (id: string, dueAt: string | null) => void;
 }
 
@@ -49,13 +55,18 @@ export function SubTaskList({
   onDelete,
   onSetDueAt,
 }: SubTaskListProps) {
+  // 2026-10-20：当前"待聚焦"子任务 id（onAddAfter 后聚焦）
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+
   const [input, setInput] = useState("");
 
   const handleAdd = () => {
     const title = input.trim();
     if (!title) return;
-    onAdd(title);
+    // 2026-10-20：onAdd 返回新 id，自动聚焦
+    const newId = onAdd(title);
     setInput("");
+    setPendingFocusId(newId);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -104,6 +115,14 @@ export function SubTaskList({
               onRename={(title) => onRename(sub.id, title)}
               onDelete={() => onDelete(sub.id)}
               onSetDueAt={(d) => onSetDueAt(sub.id, d)}
+              // 2026-10-20：按 Enter 在下面建新子任务
+              onAddAfter={() => {
+                const newId = onAdd("");
+                setPendingFocusId(newId);
+              }}
+              // 2026-10-20：标记是否需要自动进入编辑态
+              autoFocus={pendingFocusId === sub.id}
+              onFocused={() => setPendingFocusId(null)}
             />
           ))}
           {subTasks.length === 0 && (
@@ -123,12 +142,20 @@ function SubTaskItem({
   onRename,
   onDelete,
   onSetDueAt,
+  autoFocus = false,
+  onFocused,
+  onAddAfter,
 }: {
   sub: SubTask;
   onToggle: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
   onSetDueAt: (dueAt: string | null) => void;
+  // 2026-10-20：parent 标记新创建的子任务需要自动进入编辑模式
+  autoFocus?: boolean;
+  onFocused?: () => void;
+  // 2026-10-20：按 Enter → 在下方建新子任务并聚焦
+  onAddAfter?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sub.title);
@@ -137,11 +164,23 @@ function SubTaskItem({
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
-      inputRef.current?.select();
+      // 2026-10-20 改：光标定位末尾而不是 select-all
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
     }
   }, [editing]);
 
+  // 2026-10-20：autoFocus prop 触发时自动进入编辑态，并通知 parent 清理标记
+  useEffect(() => {
+    if (autoFocus && !editing) {
+      setDraft(sub.title);
+      setEditing(true);
+      onFocused?.();
+    }
+  }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleStartEdit = (e: React.MouseEvent) => {
+    // BUG-7: 单击名称进入编辑
     e.stopPropagation();
     setDraft(sub.title);
     setEditing(true);
@@ -158,7 +197,9 @@ function SubTaskItem({
   const handleKeyDownEdit = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      // 2026-10-20：Enter → 提交当前 + 触发父级新建子任务
       handleCommit();
+      onAddAfter?.();
     } else if (e.key === "Escape") {
       e.preventDefault();
       setDraft(sub.title);
@@ -217,7 +258,7 @@ function SubTaskItem({
               {sub.dueAt && <DueDateBadgeInline dueAt={sub.dueAt} data-testid="sub-task-due-badge" />}
             </>
           )}
-          {/* 2026-10-09：与父任务统一，用 DueDatePicker 组件（compact 模式：日历图标 + 相对时间） */}
+          {/* 2026-10-09：截止日期选择器（hover 显示） */}
           <DueDatePicker
             value={sub.dueAt}
             onChange={onSetDueAt}

@@ -38,6 +38,8 @@ interface ListTaskRowProps {
   onRename?: (title: string) => void; // BUG-round3 z1-4：双击重命名
   onSetPriority: (priority: TaskPriority) => void;
   onSetDueAt: (dueAt: string | null) => void;
+  // 2026-10-20：用户在任务名按 Enter → 在当前任务下创建新子任务
+  onAddSubtask?: () => void;
 }
 
 export function ListTaskRow({
@@ -49,6 +51,7 @@ export function ListTaskRow({
   onRename,
   onSetPriority,
   onSetDueAt,
+  onAddSubtask,
 }: ListTaskRowProps) {
   return (
     <ContextMenu>
@@ -59,6 +62,8 @@ export function ListTaskRow({
             isSelected={isSelected}
             onClick={onSelect}
             onRename={onRename}
+            // 2026-10-20：Enter 后建新子任务
+            onAddSubtask={onAddSubtask}
             rightChildren={
               <>
                 {/* BUG-2: 截止日期选择器（hover 显示）移到任务末尾 */}

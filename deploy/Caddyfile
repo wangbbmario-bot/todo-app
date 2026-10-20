@@ -1,17 +1,47 @@
-http://47.107.46.78.nip.io, http://47.107.46.78 {
+# =====================================================
+# 2026-10-20：备案下来了，开 HTTPS
+# - juststartit.cn / www.juststartit.cn 自动申请 Let's Encrypt cert
+# - 47.107.46.78.nip.io 保留 HTTP（备案是给 juststartit.cn 用的，nip.io 走 IP 跟备案无关）
+# =====================================================
+
+# HTTPS 入口：正式域名（备案后能用）
+juststartit.cn, www.juststartit.cn {
 	encode zstd gzip
 
 	# /uploads/* 静态文件
-	# matcher (path /uploads/*) 保留完整路径不剥前缀
-	# 所以 file_server 看到的是 /uploads/xxx.png
-	# root 必须设 /，这样 file_server 找 /uploads/xxx.png（容器内实际路径）
-	@uploads path /uploads/*
-	handle @uploads {
+	handle /uploads/* {
 		header Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
-		file_server {
-			root /
-		}
+		file_server
+	}
+
+	reverse_proxy web:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	@static path /_next/static/* /icons/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# HTTP 入口：nip.io / IP（备案是给 juststartit.cn 用的，nip.io 走 IP 不受影响）
+http://47.107.46.78.nip.io, http://47.107.46.78 {
+	encode zstd gzip
+	auto_https off
+
+	# /uploads/* 静态文件
+	handle /uploads/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		file_server
 	}
 
 	reverse_proxy web:3000 {

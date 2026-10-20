@@ -67,8 +67,11 @@ services:
     image: caddy:2-alpine
     container_name: todo-caddy
     restart: unless-stopped
+    # 2026-10-20：备案下来后要申请 Let's Encrypt cert，caddy 容器内的 Docker DNS
+    # (127.0.0.11) 解析 acme-v02.api.letsencrypt.org 失败，必须指定阿里 + 谷歌 DNS
     dns:
-      - 127.0.0.11
+      - 223.5.5.5
+      - 8.8.8.8
     depends_on:
       web:
         condition: service_healthy

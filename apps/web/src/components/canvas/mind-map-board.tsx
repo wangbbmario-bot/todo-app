@@ -363,14 +363,8 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
         const fn = useTodoStore.getState().floatingNodes.find((f) => f.id === node.id);
         if (!fn) return;
         const data = node.data as FloatingNodeData;
-        // 图片节点 → 单击查看大图（不是改名）
-        if (data.kind === "IMAGE" && data.imageUrl) {
-          setPreviewingImage({ url: data.imageUrl, title: fn.title });
-        } else {
-          // 文字节点 → 单击改名
-          // 2026-10-09 修：之前没传 kind 字段，handleConfirmEdit 的 if/else 都不匹配
-          setEditingNode({ id: fn.id, title: fn.title, kind: "floating" });
-        }
+        // 2026-10-20：单击直接进入便利贴内编辑（floating-node.tsx 内部 onClick 处理）
+        // 这里不再触发旧的 EditNodeDialog
       }
     },
     [toggleSubTask],
@@ -388,14 +382,8 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
         return;
       }
       // 游离节点（文字/图片）→ 改 floatingNode.title
-      if (node.type === "floating") {
-        setEditingNode({
-          id: node.id,
-          title: (node.data as FloatingNodeData).title,
-          kind: "floating",
-        });
-      }
-    },
+      // 2026-10-20：floating 节点不再用 EditNodeDialog（直接在便利贴内编辑）
+    // 只保留 sub-task 的双击改名（用 EditNodeDialog）
     [],
   );
 
@@ -404,12 +392,11 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
       if (!editingNode) return;
       if (editingNode.kind === "subtask") {
         updateSubTaskTitle(editingNode.id, newTitle);
-      } else if (editingNode.kind === "floating") {
-        updateFloatingNode(editingNode.id, { title: newTitle });
       }
+      // floating 节点的编辑在便利贴内直接做，不走这个 dialog
       setEditingNode(null);
     },
-    [editingNode, updateSubTaskTitle, updateFloatingNode],
+    [editingNode, updateSubTaskTitle],
   );
 
   return (

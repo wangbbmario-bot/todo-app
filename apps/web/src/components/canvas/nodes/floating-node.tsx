@@ -54,8 +54,10 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         if (editing) commit();
       }}
       className={cn(
-        "group relative min-w-[180px] max-w-[400px] rounded-lg shadow-sm",
-        // 便利贴黄底配色
+        "group relative overflow-hidden rounded-lg shadow-sm",
+        // 2026-10-20：去掉 max-w-[400px]
+        // 它会盖住 NodeResizer 的 maxWidth（600），导致"往大拖没反应"
+        // 下限交给 style.minWidth，与 NodeResizer minWidth 保持一致
         isImage
           ? "bg-card border border-border"
           : "bg-amber-50 border border-amber-200/80",
@@ -64,10 +66,14 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
       data-testid="floating-node"
       style={{
         width: d.width ?? 220,
-        minHeight: d.height ?? 140,
+        // 2026-10-20：height 而不是 minHeight
+        // minHeight 会挡住"往小拖"，拖到比 d.height 更小就没反应了
+        height: d.height,
+        minWidth: 140,
+        minHeight: 80,
       }}
     >
-      {/* Resizer - 右下角拖手 */}
+      {/* Resizer - 右下角拖手（2026-10-20：始终可见，不依赖 selected） */}
       <NodeResizer
         minWidth={140}
         minHeight={80}
@@ -75,7 +81,16 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         maxHeight={500}
         lineClassName="border-amber-400"
         handleClassName="h-3 w-3 bg-amber-400 border-amber-600 rounded"
-        isVisible={selected}
+        isVisible={true}
+        onResizeEnd={(_e, params) => {
+          // 兜底：直接把最终尺寸写回 store
+          // （onNodesChange 的 dimensions 分支已覆盖，这里双保险，幂等无害）
+          if (params.width != null && params.height != null) {
+            useTodoStore
+              .getState()
+              .updateFloatingNode(id, { width: params.width, height: params.height });
+          }
+        }}
       />
 
       <Handle
@@ -95,25 +110,32 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
+            // 2026-10-20：Enter 默认行为 = 加换行（textarea 默认）
+            // 不再让 Enter 提交，让用户连续打字
             if (e.key === "Escape") {
               setDraft(d.title);
               setEditing(false);
-            } else if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+            }
+            // Cmd/Ctrl + Enter = 提交（强制保存）
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
               commit();
             }
           }}
-          placeholder="便签内容（每行一个 bullet）"
-          className="block w-full h-full min-h-[100px] bg-transparent resize-none outline-none px-3 py-2 text-sm leading-relaxed text-amber-950 placeholder:text-amber-400"
+          placeholder="便签内容（每行一个 bullet，回车换行）"
+          className="block h-full w-full resize-none overflow-y-auto bg-transparent outline-none px-3 py-2 text-sm leading-relaxed text-amber-950 placeholder:text-amber-400"
         />
       ) : (
-        <div className="px-3 py-2.5 text-sm leading-relaxed text-amber-950">
+        <div className="h-full overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-amber-950">
           {isImage && d.imageUrl ? (
             <div className="mb-2">
               <img
                 src={d.imageUrl}
                 alt={d.title}
-                className="block max-h-[160px] w-auto rounded object-contain"
+                // 2026-10-20：跟着便利贴尺寸走（原来写死 160px，
+                // 便利贴拖小后图片会被 overflow-hidden 裁掉）
+                className="block max-h-full w-auto rounded object-contain"
                 draggable={false}
               />
             </div>

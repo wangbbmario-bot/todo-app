@@ -120,15 +120,20 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
               n.id === ch.id ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
             ),
           }));
-        } else if (ch.type === "resize" && "width" in ch && "height" in ch) {
+        } else if (ch.type === "dimensions") {
           // 2026-10-20：便利贴大小调整
-          useTodoStore.setState((state) => ({
-            floatingNodes: state.floatingNodes.map((n) =>
-              n.id === ch.id && ch.width != null && ch.height != null
-                ? { ...n, width: ch.width, height: ch.height }
-                : n,
-            ),
-          }));
+          // React Flow v12 的 NodeResizer 发的是 type:"dimensions"，
+          // 宽高嵌在 ch.dimensions 里（不是 ch.width / ch.height，也不是 type:"resize"）
+          // 只在 resizing === false（松手）时写回 store，避免拖动过程中高频 setState
+          const dim = (ch as { dimensions?: { width?: number; height?: number } }).dimensions;
+          if (!ch.resizing && dim?.width != null && dim?.height != null) {
+            const { width, height } = dim;
+            useTodoStore.setState((state) => ({
+              floatingNodes: state.floatingNodes.map((n) =>
+                n.id === ch.id ? { ...n, width, height } : n,
+              ),
+            }));
+          }
         }
       }
     });
@@ -212,6 +217,8 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
                 taskId: task.id, // BUG-15：绑定任务
                 x: 400,
                 y: floatingNodesRef.current.length * 100 + 60,
+                width: 280,        // 2026-10-20：图片节点默认尺寸（防止便利贴尺寸太小图片被截）
+                height: 200,
               });
             } catch (err) {
               console.error("[upload] error:", err);
@@ -383,7 +390,7 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
       }
       // 游离节点（文字/图片）→ 改 floatingNode.title
       // 2026-10-20：floating 节点不再用 EditNodeDialog（直接在便利贴内编辑）
-    // 只保留 sub-task 的双击改名（用 EditNodeDialog）
+    },
     [],
   );
 

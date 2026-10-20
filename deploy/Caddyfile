@@ -9,9 +9,13 @@ juststartit.cn, www.juststartit.cn {
 	encode zstd gzip
 
 	# /uploads/* 静态文件
+	# 2026-10-20：必须显式 root * /uploads
+	#   volume todo_uploads 挂在容器的 /uploads，而 file_server 默认 root 是 /srv
+	#   → 不写 root 时请求 /uploads/xxx 会去找 /srv/uploads/xxx → 永远 404（图片不显示）
 	handle /uploads/* {
 		header Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
+		root * /uploads
 		file_server
 	}
 
@@ -37,9 +41,13 @@ http://47.107.46.78.nip.io, http://47.107.46.78 {
 	encode zstd gzip
 
 	# /uploads/* 静态文件
+	# 2026-10-20：必须显式 root * /uploads
+	#   volume todo_uploads 挂在容器的 /uploads，而 file_server 默认 root 是 /srv
+	#   → 不写 root 时请求 /uploads/xxx 会去找 /srv/uploads/xxx → 永远 404（图片不显示）
 	handle /uploads/* {
 		header Cache-Control "public, max-age=31536000, immutable"
 		header X-Content-Type-Options "nosniff"
+		root * /uploads
 		file_server
 	}
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { List, CheckSquare, Network, ChevronLeft, KeyRound, LogOut } from "lucide-react";
+import { List, CheckSquare, Network, ChevronLeft, KeyRound, LogOut, MoreVertical } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 import { useTodoStore, useSelectedList } from "@/lib/stores/todo-store";
@@ -194,6 +194,10 @@ interface MobileLayoutProps {
 function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
   const selectedList = useSelectedList();
   const selectedTaskId = useTodoStore((s) => s.selectedTaskId);
+  const { data: session } = useSession();
+  // 2026-10-20：mobile header 也需要"改密 / 登出"入口
+  //   之前只有 ThemeToggle，没有头像菜单 → mobile 用户无法改密、无法登出、被锁死
+  const [changePwOpen, setChangePwOpen] = useState(false);
 
   // 选中清单或任务时，自动跳到对应 Tab
   useEffect(() => {
@@ -228,7 +232,16 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
           {activeTab === "board" && (selectedList?.name ?? "画板")}
         </div>
         <ThemeToggle />
+        {session?.user && (
+          <MobileAppMenu
+            phone={session.user.phone ?? ""}
+            onChangePassword={() => setChangePwOpen(true)}
+            onSignOut={() => signOut({ callbackUrl: "/login" })}
+          />
+        )}
       </div>
+
+      <ChangePasswordDialog open={changePwOpen} onOpenChange={setChangePwOpen} />
 
       {/* 主内容区 */}
       <div className="flex-1 overflow-hidden">
@@ -296,10 +309,91 @@ function MobileTabButton({
           ? "text-primary"
           : "text-muted-foreground hover:text-foreground",
       )}
+      data-testid={`mobile-tab-${label === "清单" ? "lists" : label === "任务" ? "tasks" : "board"}`}
     >
       <Icon className="h-5 w-5" />
       <span>{label}</span>
     </button>
+  );
+}
+
+// 2026-10-20：移动端头像菜单（MoreVertical 触发）
+// 桌面有 AppLogoMenu，但 mobile header 空间有限不能塞文字 trigger。
+// 这里独立一份，dropdown 内容（手机号/改密/登出）和桌面完全一致。
+function MobileAppMenu({
+  phone,
+  onChangePassword,
+  onSignOut,
+}: {
+  phone: string;
+  onChangePassword: () => void;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 点外面关闭（桌面 AppLogoMenu 没有这个处理，触屏更容易点飞）
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="ml-1 flex h-7 w-7 items-center justify-center rounded hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid="app-menu-trigger"
+        aria-label="应用菜单"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-full z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-md"
+          data-testid="app-menu-content"
+          role="menu"
+        >
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">{phone}</div>
+          <button
+            type="button"
+            onClick={() => {
+              onChangePassword();
+              setOpen(false);
+            }}
+            className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+            data-testid="app-menu-change-password"
+          >
+            <KeyRound className="mr-2 h-4 w-4" />
+            修改密码
+          </button>
+          <div className="my-1 h-px bg-border" />
+          <button
+            type="button"
+            onClick={() => {
+              onSignOut();
+              setOpen(false);
+            }}
+            className="flex w-full items-center rounded px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:outline-none"
+            data-testid="app-menu-signout"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            退出登录
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

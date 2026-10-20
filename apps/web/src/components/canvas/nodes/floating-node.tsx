@@ -84,7 +84,10 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         maxWidth={600}
         maxHeight={500}
         lineClassName="border-amber-400"
-        handleClassName="h-3 w-3 bg-amber-400 border-amber-600 rounded"
+        // 2026-10-20：拖手 mobile 下增大到 24×24（桌面保持 12×12）
+        //   mobile first：默认 h-6 w-6 = 24×24；桌面 md+ 才缩回 12×12
+        //   否则手机屏上 12px 拖手点不到
+        handleClassName="h-6 w-6 md:h-3 md:w-3 bg-amber-400 border-amber-600 rounded"
         isVisible={true}
         onResizeEnd={(_e, params) => {
           // 兜底：直接把最终尺寸写回 store

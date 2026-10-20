@@ -305,13 +305,18 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   // 工具栏回调
   // BUG-9 + BUG-11(z2-11)：+ 号创建游离节点，初始位置在父任务方框上方
   const handleAddNode = useCallback(() => {
+    // 2026-10-20：散布公式改成 4×3 网格（之前模 3 → 4 个就开始重叠）
+    // 用 floatingNodes.length 取网格坐标，错开 280px×100px 让便利贴铺开
+    const i = floatingNodes.length;
+    const col = i % 4;
+    const row = Math.floor(i / 4) % 3;
     addFloatingNode({
       kind: "TEXT",
-      title: `新游离节点 ${floatingNodes.length + 1}`,
+      title: `新游离节点 ${i + 1}`,
       taskId: task.id,  // BUG-15(z2-15)：绑定到当前任务，切换任务时不串
-      x: 60,                                    // 父任务左侧一点
-      y: -120 - (floatingNodes.length % 3) * 60, // 父任务上方，错开避免重叠
-      width: 220,                                // 2026-10-20：便利贴默认尺寸
+      x: 60 + col * 280,                          // 横向 4 列（280px 一列）
+      y: -160 - row * 140,                        // 纵向 3 行（140px 一行）
+      width: 220,                                 // 2026-10-20：便利贴默认尺寸
       height: 140,
     });
   }, [addFloatingNode, floatingNodes.length, task.id]);

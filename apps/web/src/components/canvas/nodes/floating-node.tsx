@@ -85,7 +85,7 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
           : "bg-amber-50 border border-amber-200/80",
         // 第六轮：选中态视觉克制 —— 白底 + 黑色细描边 + 阴影（参考用户给的草图）
         // 不再是 primary 蓝 ring，配合 NodeResizer 的 4 个蓝色空心 handle，整体观感更"卡片"
-        selected && "bg-card border-2 border-foreground/40 shadow-md",
+        selected && "shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
       )}
       data-testid="floating-node"
       style={{
@@ -111,7 +111,10 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         minHeight={80}
         maxWidth={600}
         maxHeight={500}
-        lineClassName="border-foreground/40"
+        // 第六轮：明确的深灰近黑（Tailwind slate-700 = #374151）——
+        // 用 RF 的 color prop 直接传 RGB 不被 class 解析影响。
+        // 之前用 className border-foreground/40 实际渲染成蓝色（项目 --foreground 撞了 primary）。
+        color="#374151"
         handleStyle={{
           width: 14,
           height: 14,

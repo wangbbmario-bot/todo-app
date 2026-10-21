@@ -17,7 +17,12 @@ export const dynamic = "force-dynamic";
 export default function LoginPage() {
   const router = useRouter();
   const search = useSearchParams();
-  const callbackUrl = search.get("callbackUrl") || "/";
+  // 2026-10-21：callbackUrl 只接受站内路径。
+  //   `?callbackUrl=https://evil.com` 这种外站地址会形成开放重定向，
+  //   而且下面拼绝对 URL 时也会把它当成跨域目标。非站内一律回落到 "/"。
+  const rawCallback = search.get("callbackUrl") || "/";
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/";
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -53,11 +58,18 @@ export default function LoginPage() {
     setError(null);
 
     startTransition(async () => {
+      // 2026-10-21：callbackUrl 必须传绝对 URL。
+      //   传相对路径（比如 "/"）时，NextAuth 会用 NEXTAUTH_URL 环境变量补全 ——
+      //   线上 NEXTAUTH_URL = http://47.107.46.78.nip.io，于是用户从
+      //   https://juststartit.cn 登录后会被弹到 nip.io，且 authjs.callback-url
+      //   cookie 也被污染成 nip.io（下次登录继续跳错地方）。
+      //   显式拼上当前 origin，NextAuth 就不需要猜了。
+      const absoluteCallback = `${window.location.origin}${callbackUrl.startsWith("/") ? callbackUrl : `/${callbackUrl}`}`;
       const res = await signIn("credentials", {
         phone,
         password,
         redirect: false,
-        callbackUrl,
+        callbackUrl: absoluteCallback,
       });
       if (!res || res.error) {
         setError("手机号或密码错误");

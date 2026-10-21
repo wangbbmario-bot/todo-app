@@ -17,9 +17,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      // BUG-round3：toast 相对屏幕正中（不是右下角）
-      // 用 inline style 强制覆盖 sonner 默认 position 行为
-      position="top-center"
+      // 第五轮 BUG3：原来这里写死 position="top-center"，
+      // 再配合下面 inline style 的 top/left:50% + translate(-50%,-50%) 强制屏幕正中，
+      // 会把 layout.tsx 传进来的 position 完全盖掉 —— 这才是「弹窗全局居中」的真正根因。
+      // 现在删掉硬编码的定位，位置由调用方 layout.tsx 的 position 决定（bottom-center）。
       toastOptions={{
         // BUG-round3：内容相对弹窗边框居中（图标 + 文字）
         className: "items-center justify-center text-center",
@@ -37,11 +38,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
-          top: "50%",
-          left: "50%",
-          right: "auto",
-          bottom: "auto",
-          transform: "translate(-50%, -50%)",
+          // 注意：这里不要再写 top/left/right/bottom/transform，
+          // 否则又会盖掉 sonner 根据 position 生成的定位样式
         } as React.CSSProperties
       }
       {...props}

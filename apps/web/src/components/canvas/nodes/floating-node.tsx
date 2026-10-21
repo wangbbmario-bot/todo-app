@@ -115,8 +115,11 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
           width: 14,
           height: 14,
           borderRadius: 4,
-          background: "hsl(var(--primary))",
-          border: "2px solid hsl(var(--primary))",
+          // 本项目是 Tailwind v4 的 oklch 主题：--primary 本身就是完整颜色值
+          // （oklch(0.208 0.042 265.755)），不能再套 hsl()，
+          // 套了会解析失败 → 计算样式透明（实测 bg=rgba(0,0,0,0)）
+          background: "var(--primary)",
+          border: "2px solid var(--primary)",
         }}
         handleClassName="nodrag nopan"
         isVisible={true}

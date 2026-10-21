@@ -23,6 +23,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isGuestPending, setIsGuestPending] = useState(false);
+
+  // 2026-10-21：游客模式 —— 不注册也能直接体验
+  // 凭据不放前端，走服务端 /api/auth/guest 签 session
+  const onGuestLogin = async () => {
+    setError(null);
+    setIsGuestPending(true);
+    try {
+      const res = await fetch("/api/auth/guest", { method: "POST" });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "游客模式暂不可用");
+        return;
+      }
+      router.push(callbackUrl);
+      router.refresh();
+    } catch {
+      setError("网络异常，请稍后再试");
+    } finally {
+      setIsGuestPending(false);
+    }
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +123,29 @@ export default function LoginPage() {
             <Link href="/register" className="ml-1 text-primary hover:underline">
               立即注册
             </Link>
+          </p>
+
+          {/* 2026-10-21：游客模式入口 */}
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center" aria-hidden>
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">或</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onGuestLogin}
+            disabled={isGuestPending || isPending}
+            data-testid="login-guest"
+          >
+            {isGuestPending ? "进入中..." : "游客体验"}
+          </Button>
+          <p className="text-center text-xs text-muted-foreground">
+            无需注册，游客数据保存在公共体验账号下
           </p>
         </form>
       </CardContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -23,6 +23,20 @@ export default function LoginPage() {
   const rawCallback = search.get("callbackUrl") || "/";
   const callbackUrl =
     rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/";
+
+  // 2026-10-21：清掉可能被污染的 authjs.callback-url / callback-url cookie。
+  //   NextAuth 收到相对 callbackUrl 时会用 NEXTAUTH_URL 补全成绝对地址，并写进这个 cookie。
+  //   历史上有段时间 NEXTAUTH_URL 指向 http://47.107.46.78.nip.io，
+  //   导致用户从 https://juststartit.cn 登录后仍被弹到 nip.io —— 而且 cookie 会持续自我强化。
+  //   这里在登录页挂载时主动清一次，保证后续 signIn/signOut 用的是当前 origin。
+  useEffect(() => {
+    for (const c of document.cookie.split(";")) {
+      const name = c.split("=")[0]?.trim();
+      if (name === "authjs.callback-url" || name === "callback-url" || name === "__Secure-authjs.callback-url") {
+        document.cookie = `${name}=; Max-Age=0; path=/`;
+      }
+    }
+  }, []);
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");

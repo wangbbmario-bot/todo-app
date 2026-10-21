@@ -80,12 +80,18 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         // 2026-10-20：去掉 max-w-[400px]
         // 它会盖住 NodeResizer 的 maxWidth（600），导致"往大拖没反应"
         // 下限交给 style.minWidth，与 NodeResizer minWidth 保持一致
+        // 第六轮：选中态改成"白卡片"（参考用户草图：白底 + 深灰描边 + 阴影）
+        // 必须用三元而不是 selected && "bg-card"：
+        //   cn() 只是拼接 class 字符串，Tailwind 不看顺序来决定优先级 ——
+        //   同一个元素上 bg-amber-50 和 bg-card 谁生效取决于 CSS 里 class 的定义顺序，
+        //   不是 JSX 里谁写在后面。之前就因为这样导致"选中不变白"。
         isImage
-          ? "bg-card border border-border"
-          : "bg-amber-50 border border-amber-200/80",
-        // 第六轮：选中态视觉克制 —— 白底 + 黑色细描边 + 阴影（参考用户给的草图）
-        // 不再是 primary 蓝 ring，配合 NodeResizer 的 4 个蓝色空心 handle，整体观感更"卡片"
-        selected && "shadow-[0_4px_12px_rgba(0,0,0,0.12)]",
+          ? selected
+            ? "bg-card border-2 border-neutral-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+            : "bg-card border border-border"
+          : selected
+            ? "bg-card border-2 border-neutral-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+            : "bg-amber-50 border border-amber-200/80",
       )}
       data-testid="floating-node"
       style={{
@@ -111,10 +117,16 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         minHeight={80}
         maxWidth={600}
         maxHeight={500}
-        // 第六轮：明确的深灰近黑（Tailwind slate-700 = #374151）——
-        // 用 RF 的 color prop 直接传 RGB 不被 class 解析影响。
-        // 之前用 className border-foreground/40 实际渲染成蓝色（项目 --foreground 撞了 primary）。
-        color="#374151"
+        // 边线：深灰近黑（#374151 = slate-700）
+        // ⚠️ 不能用 RF 的 color prop 控制边线 —— 它的实现是
+        //    `...(color && { [isHandleControl ? 'backgroundColor' : 'borderColor']: color })`
+        //    color 一旦传入，handle 的 backgroundColor 会被同一个颜色覆盖，
+        //    handleStyle 里的白底就失效（实测 handle 变实心深灰，而不是空心蓝方块）；
+        //    而 !important 在 React inline style 里也不生效。
+        //    所以改用 lineClassName + Tailwind 任意值语法：直接给死 RGB，
+        //    既不走 CSS 变量（不受本项目 --foreground 撞 primary 影响），
+        //    又不会污染 handle 的 backgroundColor。
+        lineClassName="border-[#374151]"
         handleStyle={{
           width: 14,
           height: 14,

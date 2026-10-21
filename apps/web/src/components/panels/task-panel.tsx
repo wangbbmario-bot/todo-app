@@ -224,9 +224,11 @@ export function TaskPanel() {
                         onSetPriority={(p) => setTaskPriority(task.id, p)}
                         onSetDueAt={(d) => setTaskDueAt(task.id, d)}
                         // 2026-10-20：在父任务名上按 Enter → 创建同级任务 + 聚焦新任务
+                        // 第五轮 BUG1：新任务继承当前父任务的优先级（之前硬编码 "LOW"，
+                        // 导致在高/中优先级任务后按 Enter 建出来的都是低优先级）
                         onAddSubtask={() => {
                           if (!selectedList || selectedList.kind !== "LIST") return;
-                          const newId = createTask(selectedList.id, "", "LOW");
+                          const newId = createTask(selectedList.id, "", task.priority);
                           setPendingFocusId(newId);
                         }}
                         autoFocus={pendingFocusId === task.id}

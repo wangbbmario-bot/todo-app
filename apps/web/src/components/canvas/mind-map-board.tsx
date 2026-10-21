@@ -40,6 +40,19 @@ const nodeTypes = {
   floating: FloatingNode,
 };
 
+/**
+ * 游离节点（文字 + 图片）统一的默认散布位置
+ *
+ * 2026-10-20 / 第五轮 BUG5b：之前文字便利贴走 4×3 网格、图片便利贴却写死 x:400，
+ * 两种节点出现在完全不同的地方。这里抽成公共函数，两种都调它，位置行为一致。
+ * 4 列 × 3 行，列距 280px、行距 140px（正好是一个便利贴的尺寸，不会互相压住）。
+ */
+function spreadPosition(index: number): { x: number; y: number } {
+  const col = index % 4;
+  const row = Math.floor(index / 4) % 3;
+  return { x: 60 + col * 280, y: -160 - row * 140 };
+}
+
 interface MindMapBoardProps {
   task: Task;
   subTasks: SubTask[];
@@ -204,13 +217,15 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
                 return;
               }
               const { url } = (await res.json()) as { url: string };
+              const i = floatingNodesRef.current.length;
+              // 第五轮 BUG5b：图片节点原来固定落在 x:400，和文字便利贴位置完全不一样
+              // 现在和文字便利贴共用同一套 4×3 网格散布逻辑
               addFloatingNode({
                 kind: "IMAGE",
                 title: `图片 ${new Date().toLocaleTimeString("zh-CN")}`,
                 imageUrl: url,
                 taskId: task.id, // BUG-15：绑定任务
-                x: 400,
-                y: floatingNodesRef.current.length * 100 + 60,
+                ...spreadPosition(i),
                 width: 280,        // 2026-10-20：图片节点默认尺寸（防止便利贴尺寸太小图片被截）
                 height: 200,
               });
@@ -305,17 +320,12 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
   // 工具栏回调
   // BUG-9 + BUG-11(z2-11)：+ 号创建游离节点，初始位置在父任务方框上方
   const handleAddNode = useCallback(() => {
-    // 2026-10-20：散布公式改成 4×3 网格（之前模 3 → 4 个就开始重叠）
-    // 用 floatingNodes.length 取网格坐标，错开 280px×100px 让便利贴铺开
     const i = floatingNodes.length;
-    const col = i % 4;
-    const row = Math.floor(i / 4) % 3;
     addFloatingNode({
       kind: "TEXT",
       title: `新游离节点 ${i + 1}`,
       taskId: task.id,  // BUG-15(z2-15)：绑定到当前任务，切换任务时不串
-      x: 60 + col * 280,                          // 横向 4 列（280px 一列）
-      y: -160 - row * 140,                        // 纵向 3 行（140px 一行）
+      ...spreadPosition(i),
       width: 220,                                 // 2026-10-20：便利贴默认尺寸
       height: 140,
     });

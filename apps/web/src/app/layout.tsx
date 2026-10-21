@@ -63,7 +63,9 @@ export default function RootLayout({
               <SessionStoreSync />
               <AnnouncementBanner />
               {children}
-              <Toaster richColors position="bottom-right" />
+              {/* 第五轮 BUG3：「任务已完成」弹窗不要全局居中（top-center），
+                  改成左右居中靠底部（bottom-center），更接近常规 App 的 toast 位置 */}
+              <Toaster richColors position="bottom-center" />
             </SessionProvider>
           </TooltipProvider>
         </ThemeProvider>

@@ -45,6 +45,24 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
 
   const lines = (d.title || "").split("\n");
 
+  // 第五轮 BUG4c：选中游离节点后按 Backspace / Delete 删除
+  // 必须挂在 window 上：焦点在画板容器（tabIndex=0）而不是节点本身，
+  // 只挂在 div 的 onKeyDown 上收不到。编辑态时不响应，避免打字时误删。
+  useEffect(() => {
+    if (!selected || editing) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      // 正在输入框里打字时不删（双保险）
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, [contenteditable]")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      useTodoStore.getState().removeFloatingNode(id);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected, editing, id]);
+
   return (
     <div
       onClick={() => {
@@ -65,7 +83,8 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         isImage
           ? "bg-card border border-border"
           : "bg-amber-50 border border-amber-200/80",
-        selected && "ring-2 ring-primary/40",
+        // 第五轮 BUG4a：选中态改成蓝色描边 + 蓝色圆角方块拖手（原来的实心琥珀色小方块太丑）
+        selected && "ring-2 ring-primary",
       )}
       data-testid="floating-node"
       style={{
@@ -77,23 +96,32 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         minHeight: 80,
       }}
     >
-      {/* Resizer - 右下角拖手（2026-10-20：始终可见，不依赖 selected） */}
+      {/* Resizer（第五轮 BUG4a）：蓝色描边 + 蓝色圆角方块拖手
+          - lineClassName 决定 4 条边的描边（用户嫌原来的实心方块丑）
+          - handleStyle 的 width/height 必须走 inline style，className 会被覆盖（见下方注释）
+          - 圆角通过 borderRadius 内联设置，比 rounded class 更可控
+          BUG4b：拖动实时生效由 RF 内部 XYResizer 完成（resizing 期间直接改 node dimensions，
+                 DOM 立刻跟着变），我们只在 onResizeEnd 落库，避免之前的 dimensions 死循环 */}
       <NodeResizer
         minWidth={140}
         minHeight={80}
         maxWidth={600}
         maxHeight={500}
-        lineClassName="border-amber-400"
-        // 2026-10-20：必须用 handleStyle 设宽高，不能用 Tailwind className
-        //   RF 的 ResizeControl 渲染时写 `style: { ...style, scale, ... }`，width/height 走 inline，
-        //   inline style specificity > CSS class → className 的 h-6/w-6 永远不生效（实测仍 5×5）
-        //   24×24 是 mobile 触摸目标（Apple HIG 44 但桌面不卡）；桌面也用 24 而非 12（少一处条件分支）
-        handleStyle={{ width: 24, height: 24 }}
-        handleClassName="bg-amber-400 border-2 border-amber-600 rounded"
+        lineClassName="border-primary"
+        // 必须用 handleStyle 设宽高 + 颜色：RF 的 ResizeControl 渲染时写
+        // `style: { ...style, scale, ... }`，inline style 的 specificity 高于 CSS class，
+        // 所以 className 里的 h-3/w-3/bg-* 永远不生效（之前实测设 h-6 w-6 仍是 5×5）
+        handleStyle={{
+          width: 14,
+          height: 14,
+          borderRadius: 4,
+          background: "hsl(var(--primary))",
+          border: "2px solid hsl(var(--primary))",
+        }}
+        handleClassName="nodrag nopan"
         isVisible={true}
         onResizeEnd={(_e, params) => {
-          // 兜底：直接把最终尺寸写回 store
-          // （onNodesChange 的 dimensions 分支已覆盖，这里双保险，幂等无害）
+          // 拖动过程 RF 已实时改 DOM；这里只把最终尺寸持久化到 store
           if (params.width != null && params.height != null) {
             useTodoStore
               .getState()
@@ -114,27 +142,49 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       {editing ? (
-        <textarea
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            // 2026-10-20：Enter 默认行为 = 加换行（textarea 默认）
-            // 不再让 Enter 提交，让用户连续打字
-            if (e.key === "Escape") {
-              setDraft(d.title);
-              setEditing(false);
-              e.preventDefault();
+        // 第五轮 BUG5a：图片节点以前编辑时图片整个消失（编辑态只渲染 textarea），
+        // 等于图片没有"点击编辑"的逻辑。改成图片保留 + 下方一个小输入框改标题/注释。
+        <div className="flex h-full flex-col overflow-y-auto px-3 py-2.5">
+          {isImage && d.imageUrl ? (
+            <div className="mb-2 flex min-h-0 flex-1 items-start justify-center">
+              <img
+                src={d.imageUrl}
+                alt={d.title}
+                className="block max-h-full max-w-full rounded object-contain"
+                draggable={false}
+              />
+            </div>
+          ) : null}
+          <textarea
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              // 2026-10-20：Enter 默认行为 = 加换行（textarea 默认）
+              // 不再让 Enter 提交，让用户连续打字
+              if (e.key === "Escape") {
+                setDraft(d.title);
+                setEditing(false);
+                e.preventDefault();
+              }
+              // Cmd/Ctrl + Enter = 提交（强制保存）
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              }
+            }}
+            placeholder={
+              isImage
+                ? "给图片写点说明（回车换行，Cmd+Enter 保存）"
+                : "便签内容（每行一个 bullet，回车换行）"
             }
-            // Cmd/Ctrl + Enter = 提交（强制保存）
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            }
-          }}
-          placeholder="便签内容（每行一个 bullet，回车换行）"
-          className="block h-full w-full resize-none overflow-y-auto bg-transparent outline-none px-3 py-2 text-sm leading-relaxed text-amber-950 placeholder:text-amber-400"
-        />
+            className={cn(
+              "block w-full resize-none bg-transparent outline-none text-sm leading-relaxed text-amber-950 placeholder:text-amber-400",
+              // 文字便利贴：占满整块；图片便利贴：固定一小条，别把图挤没
+              isImage ? "h-16 shrink-0 overflow-y-auto" : "min-h-[100px] flex-1 overflow-y-auto",
+            )}
+          />
+        </div>
       ) : (
         <div className="flex h-full flex-col overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-amber-950">
           {isImage && d.imageUrl ? (

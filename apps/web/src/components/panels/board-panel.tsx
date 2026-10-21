@@ -110,7 +110,9 @@ export function BoardPanel() {
           <SubTaskList
             subTasks={subTasks}
             // 2026-10-20：addSubTask 现在返回新 id，SubTaskList 内部管聚焦
-            onAdd={() => addSubTask(selectedTask.id, "")}
+            // 第五轮 BUG2：之前写死 `addSubTask(selectedTask.id, "")`，把输入框传进来的 title 丢掉了
+            // → 通过子任务输入栏添加的子任务标题全空
+            onAdd={(title) => addSubTask(selectedTask.id, title)}
             onToggle={toggleSubTask}
             onRename={(id, title) => updateSubTaskTitle(id, title)}
             onDelete={(id) => removeSubTask(id)}

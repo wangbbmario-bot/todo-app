@@ -79,11 +79,18 @@ export function computeInitialLayout(
       id: fn.id,
       type: "floating",
       position: { x: fn.x, y: fn.y },
+      // 第五轮 BUG4b：width/height 必须放在 node 顶层，不能只放 data
+      // RF 的 NodeResizer 在拖动过程中通过 setAttributes 直接改 node.width/height
+      // 并同步到 wrapper 的 style，视觉上就是"实时生效"。
+      // 如果只在 data 里给尺寸，组件再用 style={{width: d.width}} 渲染，
+      // 每次 React 重渲染都会把 RF 刚写好的实时尺寸覆盖回旧值 → 表现为"松手才生效"。
+      width: fn.width,
+      height: fn.height,
       data: {
         title: fn.title,
         kind: fn.kind,
         imageUrl: fn.imageUrl,
-        // 2026-10-20：把 宽度/高度 也传给节点（resize 持久化）
+        // data 里也留一份，给组件内部的 minWidth/maxWidth 兜底
         width: fn.width,
         height: fn.height,
       },

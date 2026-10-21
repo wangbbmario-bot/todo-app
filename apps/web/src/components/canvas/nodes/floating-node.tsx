@@ -88,9 +88,11 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
       )}
       data-testid="floating-node"
       style={{
+        // 第五轮 BUG4b：这两个值只作为「首次渲染的初始尺寸」。
+        // 一旦用户拖动，RF 的 setAttributes 会把实时尺寸写到 node wrapper 的 inline style，
+        // 而 React 对未变化的 style prop 不会重写 → 所以拖动过程中视觉是实时跟手的。
+        // （layout 里也把 width/height 放到了 node 顶层，两边保持一致）
         width: d.width ?? 220,
-        // 2026-10-20：height 而不是 minHeight
-        // minHeight 会挡住"往小拖"，拖到比 d.height 更小就没反应了
         height: d.height,
         minWidth: 140,
         minHeight: 80,

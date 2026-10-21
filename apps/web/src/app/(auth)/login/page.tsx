@@ -37,8 +37,10 @@ export default function LoginPage() {
         setError(data.error ?? "游客模式暂不可用");
         return;
       }
-      router.push(callbackUrl);
-      router.refresh();
+      // 2026-10-21：用整页跳转而不是 router.push
+      //   客户端导航不会重新 mount 根组件，store 里可能还留着上一个用户的残留数据，
+      //   用户会看到"登录成功但清单是空的"（SessionStoreSync 同批已修，这里是双保险）
+      window.location.assign(callbackUrl);
     } catch {
       setError("网络异常，请稍后再试");
     } finally {

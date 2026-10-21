@@ -21,9 +21,20 @@ export function SessionStoreSync() {
   const initialized = useRef(false);
 
   const runSync = async () => {
-    if (typeof window === "undefined" || initialized.current) return;
+    if (typeof window === "undefined") return;
     const userId = session?.user?.phone ?? null;
-    if (userId === lastUserId.current) return;
+    // 2026-10-21：守卫从「组件 mount 过没有」改成「这个 userId 初始化过没有」
+    //
+    // 原来的 `if (initialized.current) return;` 有个隐蔽的坑：
+    //   /login 页面里 SessionStoreSync 就已经 mount 了，此时未登录 → 走 else 分支
+    //   reset store 并把 initialized 置为 true。之后如果用【客户端导航】登录
+    //   （游客模式的 router.push、next-auth 的部分流程），组件不会重新 mount，
+    //   initialized 仍是 true → 永远不会调 GET /api/sync → 登录后清单/任务全是空的。
+    //   正常账号登录没暴露，是因为 next-auth 的 signIn 会触发整页跳转，组件重新 mount。
+    //
+    // 同一个 bug 也影响「退出 A 账号 → 登录 B 账号」：切过去不会拉 B 的数据。
+    // 改成按 userId 判断后，这两种情况都能正确 hydrate。
+    if (initialized.current && userId === lastUserId.current) return;
 
     if (userId) {
       // 登录：从 server 拉数据

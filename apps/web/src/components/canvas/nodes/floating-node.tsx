@@ -124,15 +124,15 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         maxWidth={600}
         maxHeight={500}
         // 边线：深灰近黑（#374151 = slate-700）
-        // ⚠️ 不能用 RF 的 color prop 控制边线 —— 它的实现是
-        //    `...(color && { [isHandleControl ? 'backgroundColor' : 'borderColor']: color })`
-        //    color 一旦传入，handle 的 backgroundColor 会被同一个颜色覆盖，
-        //    handleStyle 里的白底就失效（实测 handle 变实心深灰，而不是空心蓝方块）；
-        //    而 !important 在 React inline style 里也不生效。
-        //    所以改用 lineClassName + Tailwind 任意值语法：直接给死 RGB，
-        //    既不走 CSS 变量（不受本项目 --foreground 撞 primary 影响），
-        //    又不会污染 handle 的 backgroundColor。
-        lineClassName="border-[#374151]"
+        // ⚠️ 两个坑叠在一起：
+        //  1) 不能用 RF 的 color prop —— 它会同时把 handle 的 backgroundColor 也设成同色
+        //     （`...(color && { [isHandleControl ? 'backgroundColor' : 'borderColor']: color })`），
+        //     handle 的白底失效；`!important` 在 React inline style 里也没用。
+        //  2) 只用 lineClassName 也不行 —— RF 自带 CSS 变量
+        //     `--xy-resize-background-color-default: #3367d9`（蓝），
+        //     优先级高于 Tailwind 生成的 class，边线永远是蓝的。
+        // 所以边线走 lineStyle（inline style，优先级最高），handle 单独走 handleStyle。
+        lineStyle={{ borderColor: "#374151" }}
         handleStyle={{
           width: 14,
           height: 14,

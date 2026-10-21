@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
 import { cn } from "@/lib/utils";
+import { isGuestSession } from "@/lib/auth/guest";
 
 type MobileTab = "lists" | "tasks" | "board";
 
@@ -44,12 +45,16 @@ export function ThreePanelLayout() {
  */
 function AppLogoMenu({
   phone,
+  isGuest,
   onChangePassword,
-  onSignOut,
+  onGoLogin,
 }: {
   phone: string;
+  // 第六轮：游客模式（用 isGuest 标识，共享常量 lib/auth/guest.ts 里 GUEST_PHONE）
+  isGuest?: boolean;
   onChangePassword: () => void;
-  onSignOut: () => void;
+  // 游客点击「去登录」跳 /login；正常账号点「退出登录」调 signOut()
+  onGoLogin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,31 +90,40 @@ function AppLogoMenu({
           data-testid="app-menu-content"
           role="menu"
         >
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">{phone}</div>
+          {/* 游客模式：不显示账号（避免暴露测试号）+ 不显示修改密码（避免误改共享账号的密码） */}
+          {!isGuest && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground" data-testid="app-menu-phone">
+              {phone}
+            </div>
+          )}
+          {!isGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                onChangePassword();
+                setOpen(false);
+              }}
+              className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+              data-testid="app-menu-change-password"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              修改密码
+            </button>
+          )}
+          {!isGuest && <div className="my-1 h-px bg-border" />}
           <button
             type="button"
             onClick={() => {
-              onChangePassword();
+              // 游客：跳到登录页（用账号登录或注册）
+              // 正常账号：调用 signOut({ callbackUrl: "/login" })
+              onGoLogin();
               setOpen(false);
             }}
             className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
-            data-testid="app-menu-change-password"
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            修改密码
-          </button>
-          <div className="my-1 h-px bg-border" />
-          <button
-            type="button"
-            onClick={() => {
-              onSignOut();
-              setOpen(false);
-            }}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:outline-none"
             data-testid="app-menu-signout"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            退出登录
+            {isGuest ? "去登录" : "退出登录"}
           </button>
         </div>
       )}
@@ -133,8 +147,9 @@ function DesktopLayout() {
           {session?.user ? (
             <AppLogoMenu
               phone={session.user.phone ?? ""}
+              isGuest={isGuestSession(session.user.phone)}
               onChangePassword={() => setChangePwOpen(true)}
-              onSignOut={() => signOut({ callbackUrl: "/login" })}
+              onGoLogin={() => signOut({ callbackUrl: "/login" })}
             />
           ) : (
             <h1 className="text-sm font-semibold">Todo App</h1>
@@ -235,8 +250,9 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
         {session?.user && (
           <MobileAppMenu
             phone={session.user.phone ?? ""}
+            isGuest={isGuestSession(session.user.phone)}
             onChangePassword={() => setChangePwOpen(true)}
-            onSignOut={() => signOut({ callbackUrl: "/login" })}
+            onGoLogin={() => signOut({ callbackUrl: "/login" })}
           />
         )}
       </div>
@@ -322,12 +338,15 @@ function MobileTabButton({
 // 这里独立一份，dropdown 内容（手机号/改密/登出）和桌面完全一致。
 function MobileAppMenu({
   phone,
+  isGuest,
   onChangePassword,
-  onSignOut,
+  onGoLogin,
 }: {
   phone: string;
+  // 第六轮：游客模式隐藏账号/改密
+  isGuest?: boolean;
   onChangePassword: () => void;
-  onSignOut: () => void;
+  onGoLogin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -365,31 +384,36 @@ function MobileAppMenu({
           data-testid="app-menu-content"
           role="menu"
         >
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">{phone}</div>
+          {/* 游客模式：不显示手机号 + 改密；操作改成"去登录" */}
+          {!isGuest && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">{phone}</div>
+          )}
+          {!isGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                onChangePassword();
+                setOpen(false);
+              }}
+              className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+              data-testid="app-menu-change-password"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              修改密码
+            </button>
+          )}
+          {!isGuest && <div className="my-1 h-px bg-border" />}
           <button
             type="button"
             onClick={() => {
-              onChangePassword();
+              onGoLogin();
               setOpen(false);
             }}
             className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
-            data-testid="app-menu-change-password"
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            修改密码
-          </button>
-          <div className="my-1 h-px bg-border" />
-          <button
-            type="button"
-            onClick={() => {
-              onSignOut();
-              setOpen(false);
-            }}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:outline-none"
             data-testid="app-menu-signout"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            退出登录
+            {isGuest ? "去登录" : "退出登录"}
           </button>
         </div>
       )}

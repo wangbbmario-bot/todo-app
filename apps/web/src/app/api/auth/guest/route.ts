@@ -15,10 +15,7 @@
 import { NextResponse } from "next/server";
 
 import { signIn } from "@/lib/auth/config";
-
-/** 游客模式归属的账号（与测试账号同一个） */
-const GUEST_PHONE = "18552279527";
-const GUEST_PASSWORD = "18552279527";
+import { GUEST_PHONE } from "@/lib/auth/guest";
 
 // 不能静态缓存：每次都要重新签 cookie
 export const dynamic = "force-dynamic";
@@ -28,7 +25,7 @@ export async function POST() {
     // NextAuth v5：在 Route Handler 里调用 signIn 会自动把 session cookie 写进响应
     await signIn("credentials", {
       phone: GUEST_PHONE,
-      password: GUEST_PASSWORD,
+      password: process.env.GUEST_PASSWORD || GUEST_PHONE,
       redirect: false,
     });
 

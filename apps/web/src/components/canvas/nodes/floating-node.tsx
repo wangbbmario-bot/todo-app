@@ -83,8 +83,9 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         isImage
           ? "bg-card border border-border"
           : "bg-amber-50 border border-amber-200/80",
-        // 第五轮 BUG4a：选中态改成蓝色描边 + 蓝色圆角方块拖手（原来的实心琥珀色小方块太丑）
-        selected && "ring-2 ring-primary",
+        // 第六轮：选中态视觉克制 —— 白底 + 黑色细描边 + 阴影（参考用户给的草图）
+        // 不再是 primary 蓝 ring，配合 NodeResizer 的 4 个蓝色空心 handle，整体观感更"卡片"
+        selected && "bg-card border-2 border-foreground/40 shadow-md",
       )}
       data-testid="floating-node"
       style={{
@@ -98,29 +99,25 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         minHeight: 80,
       }}
     >
-      {/* Resizer（第五轮 BUG4a）：蓝色描边 + 蓝色圆角方块拖手
-          - lineClassName 决定 4 条边的描边（用户嫌原来的实心方块丑）
-          - handleStyle 的 width/height 必须走 inline style，className 会被覆盖（见下方注释）
-          - 圆角通过 borderRadius 内联设置，比 rounded class 更可控
-          BUG4b：拖动实时生效由 RF 内部 XYResizer 完成（resizing 期间直接改 node dimensions，
-                 DOM 立刻跟着变），我们只在 onResizeEnd 落库，避免之前的 dimensions 死循环 */}
+      {/* Resizer（第六轮）：按用户草图改进
+          - line 边线：黑色细边（更克制，不再是 primary 蓝）
+          - 4 个角 handle：蓝色空心圆角方块（外蓝内白 = var(--background) 填充 + 蓝色边框）
+          - handle 必须走 handleStyle：RF 的 ResizeControl 用 inline style 写 width/height，
+            CSS className 会被覆盖（之前实测设 h-6 w-6 仍是 5×5）
+          拖动实时由 RF 内部 XYResizer 完成（resizing 期间直接改 wrapper style），
+          我们只在 onResizeEnd 落库，避开之前的 dimensions 写回 store 的死循环 */}
       <NodeResizer
         minWidth={140}
         minHeight={80}
         maxWidth={600}
         maxHeight={500}
-        lineClassName="border-primary"
-        // 必须用 handleStyle 设宽高 + 颜色：RF 的 ResizeControl 渲染时写
-        // `style: { ...style, scale, ... }`，inline style 的 specificity 高于 CSS class，
-        // 所以 className 里的 h-3/w-3/bg-* 永远不生效（之前实测设 h-6 w-6 仍是 5×5）
+        lineClassName="border-foreground/40"
         handleStyle={{
           width: 14,
           height: 14,
-          borderRadius: 4,
-          // 本项目是 Tailwind v4 的 oklch 主题：--primary 本身就是完整颜色值
-          // （oklch(0.208 0.042 265.755)），不能再套 hsl()，
-          // 套了会解析失败 → 计算样式透明（实测 bg=rgba(0,0,0,0)）
-          background: "var(--primary)",
+          borderRadius: 3,
+          // 蓝色边框 + 白色内填 = "空心蓝方块"，整体观感比实心方块克制得多
+          background: "var(--background)",
           border: "2px solid var(--primary)",
         }}
         handleClassName="nodrag nopan"

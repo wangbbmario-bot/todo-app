@@ -87,10 +87,10 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         //   不是 JSX 里谁写在后面。之前就因为这样导致"选中不变白"。
         isImage
           ? selected
-            ? "bg-card border-2 border-neutral-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+            ? "bg-card border-2 border-neutral-400"
             : "bg-card border border-border"
           : selected
-            ? "bg-card border-2 border-neutral-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+            ? "bg-card border-2 border-neutral-400"
             : "bg-amber-50 border border-amber-200/80",
       )}
       data-testid="floating-node"
@@ -103,6 +103,12 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         height: d.height,
         minWidth: 140,
         minHeight: 80,
+        // 第六轮：选中态阴影走 inline style，不用 Tailwind arbitrary class
+        //   `shadow-[0_4px_12px_rgba(0,0,0,0.15)]` 里的逗号会被 Tailwind 当成分隔符解析，
+        //   实测 boxShadow 算出来是全 0（= 没生效）。inline style 没有这层解析问题。
+        ...(selected
+          ? { boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }
+          : {}),
       }}
     >
       {/* Resizer（第六轮）：按用户草图改进

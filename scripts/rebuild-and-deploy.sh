@@ -21,6 +21,10 @@ TAG="${TAG:-v-$(date +%Y%m%d-%H%M%S)}"
 LOG="/tmp/build-${TAG}.log"
 
 # DB 凭据必须从 .env 读，跟 docker-compose 用同一份
+# 2026-10-24：docker compose 命令也补上 --env-file
+#   compose 默认只在【当前工作目录】找 .env，而我们的 .env 在 deploy/ 下，
+#   脚本 cd 到 /opt/todo/app 后 compose 找不到它 → ${NEXTAUTH_URL} / ${GUEST_*} 会解析成空
+#   （症状：容器里 NEXTAUTH_URL 正常但新加的 GUEST_PHONE 丢失）
 ENV_FILE="${ENV_FILE:-/opt/todo/app/deploy/.env}"
 if [ ! -f "$ENV_FILE" ]; then
   echo "❌ 找不到 .env: $ENV_FILE"
@@ -79,7 +83,7 @@ echo "=== 重启容器（保留 data volumes）==="
 #   裸 `up -d` 会试图"新建" todo-caddy → 报 name already in use 中断整个 up
 #   → todo-web 被 recreate 了但没人去 start，停在 Created 状态 → 站点 502。
 #   db 归 compose 管但状态正常，不需要动；web 用 --no-deps 单独重建。
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps web 2>&1 | tail -10
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps web 2>&1 | tail -10
 
 # Caddy 配置变更后单独 reload（它不受 compose 管理）
 if docker exec todo-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then

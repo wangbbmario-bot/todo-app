@@ -49,6 +49,10 @@ services:
       FEISHU_WEBHOOK_URL: ${FEISHU_WEBHOOK_URL:-}
       UPLOAD_DIR: /data/uploads
       NODE_ENV: production
+      # ---------- 游客模式（可选，不配则登录页不显示「游客体验」）----------
+      # environment 是白名单：.env 里加了变量但这里没列，容器就拿不到
+      GUEST_PHONE: ${GUEST_PHONE:-}
+      GUEST_PASSWORD: ${GUEST_PASSWORD:-}
     volumes:
       - todo-logs:/var/log/todo-web
       - uploads:/data/uploads

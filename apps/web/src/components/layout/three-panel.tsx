@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
 import { cn } from "@/lib/utils";
-import { isGuestSession } from "@/lib/auth/guest";
+import { clearGuestCookie, isGuestMode } from "@/lib/auth/guest";
 
 /**
  * 2026-10-21：构造「当前域名」的登录页绝对 URL
@@ -61,18 +61,18 @@ export function ThreePanelLayout() {
  */
 function AppLogoMenu({
   phone,
-  isGuest,
   onChangePassword,
   onGoLogin,
 }: {
   phone: string;
-  // 第六轮：游客模式（用 isGuest 标识，共享常量 lib/auth/guest.ts 里 GUEST_PHONE）
-  isGuest?: boolean;
   onChangePassword: () => void;
   // 游客点击「去登录」跳 /login；正常账号点「退出登录」调 signOut()
   onGoLogin: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  // 2026-10-24：游客判定改用服务端下发的 cookie（todo-guest-mode）。
+  //   之前是比对手机号硬编码常量 —— 开源后源码里不能出现游客账号手机号。
+  const isGuest = isGuestMode();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Click 外部关闭菜单（hover 实现不稳定，改用 click + 外部点击关闭）
@@ -163,9 +163,11 @@ function DesktopLayout() {
           {session?.user ? (
             <AppLogoMenu
               phone={session.user.phone ?? ""}
-              isGuest={isGuestSession(session.user.phone)}
               onChangePassword={() => setChangePwOpen(true)}
-              onGoLogin={() => signOut({ callbackUrl: absoluteLoginUrl() })}
+              onGoLogin={() => {
+                clearGuestCookie();
+                signOut({ callbackUrl: absoluteLoginUrl() });
+              }}
             />
           ) : (
             <h1 className="text-sm font-semibold">Todo App</h1>
@@ -266,9 +268,11 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
         {session?.user && (
           <MobileAppMenu
             phone={session.user.phone ?? ""}
-            isGuest={isGuestSession(session.user.phone)}
             onChangePassword={() => setChangePwOpen(true)}
-            onGoLogin={() => signOut({ callbackUrl: absoluteLoginUrl() })}
+            onGoLogin={() => {
+                clearGuestCookie();
+                signOut({ callbackUrl: absoluteLoginUrl() });
+              }}
           />
         )}
       </div>
@@ -354,17 +358,16 @@ function MobileTabButton({
 // 这里独立一份，dropdown 内容（手机号/改密/登出）和桌面完全一致。
 function MobileAppMenu({
   phone,
-  isGuest,
   onChangePassword,
   onGoLogin,
 }: {
   phone: string;
-  // 第六轮：游客模式隐藏账号/改密
-  isGuest?: boolean;
   onChangePassword: () => void;
   onGoLogin: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  // 2026-10-24：同 AppLogoMenu，用 cookie 判定游客模式
+  const isGuest = isGuestMode();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 点外面关闭（桌面 AppLogoMenu 没有这个处理，触屏更容易点飞）

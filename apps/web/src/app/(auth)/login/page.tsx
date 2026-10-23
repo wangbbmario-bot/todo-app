@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+
+import { clearGuestCookie } from "@/lib/auth/guest";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -89,6 +91,9 @@ export default function LoginPage() {
         setError("手机号或密码错误");
         return;
       }
+      // 2026-10-24：用真实账号登录后，清掉游客模式标记
+      //   （否则菜单还会保持"游客模式"，不显示修改密码）
+      clearGuestCookie();
       router.push(callbackUrl);
       router.refresh();
     });

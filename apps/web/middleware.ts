@@ -27,6 +27,8 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/api/auth",
   "/api/register",
+  // 2026-10-26：构建版本文件（header 显示版本号用），必须免登录访问
+  "/version.json",
 ];
 
 function isPublic(pathname: string): boolean {

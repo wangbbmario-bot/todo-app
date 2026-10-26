@@ -146,7 +146,7 @@ export function TaskRow({
           //   flex item 默认 min-width:auto，input 会按内容宽度撑开整行
           //   → 左侧的完成框/优先级色条被挤出容器裁掉
           //   → 更糟的是 focus() 会把容器横向滚到 input 位置，checkbox 直接看不见
-          className="min-w-0 flex-1 rounded border border-primary/40 bg-background px-1 outline-none focus:border-primary"
+          className="w-full min-w-0 flex-1 rounded border border-primary/40 bg-background px-1 outline-none focus:border-primary"
           data-testid="task-title-input"
           aria-label="任务名"
         />
@@ -155,7 +155,7 @@ export function TaskRow({
           className={cn(
             // 2026-10-26：min-w-0 让长标题能真正收缩（truncate 单独用不够，
             //   flex item 默认 min-width:auto 会顶着右侧操作按钮不放）
-            "min-w-0 flex-1 cursor-text truncate rounded px-1 hover:bg-background",
+            "w-full min-w-0 flex-1 cursor-text truncate rounded px-1 hover:bg-background",
             (task.status === "DONE" || task.status === "CANCELLED") && "line-through",
           )}
           title={editable ? "单击修改名称" : undefined}

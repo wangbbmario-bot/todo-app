@@ -114,7 +114,10 @@ export function ListPanel() {
       </div>
 
       {/* 列表区 */}
-      <ScrollArea className="flex-1 scrollbar-thin">
+      <ScrollArea
+        // 2026-10-26：同样要 min-h-0（清单多了也滚不动，根因同 task-panel）
+        className="min-h-0 flex-1 scrollbar-thin"
+      >
         <div className="space-y-1 p-2">
           {/* 用户清单 - 可拖动排序 */}
           <DndContext

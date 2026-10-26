@@ -185,7 +185,13 @@ export function TaskPanel() {
       )}
 
       {/* 任务列表区 */}
-      <ScrollArea className="flex-1 scrollbar-thin [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden">
+      <ScrollArea
+        // 2026-10-26：必须加 min-h-0
+        //   ScrollArea 是 flex-1（basis 0），但 flex item 默认 min-height:auto，
+        //   任务一多 Root 就被内容撑大（实测 1922px > 分配的 762px），
+        //   viewport 跟着撑大 → 内容永远"刚好装得下" → 列表滚不动
+        className="min-h-0 flex-1 scrollbar-thin [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden"
+      >
         <div className="p-2">
           {tasks.length === 0 && (
             <div className="px-2 py-8 text-center text-sm text-muted-foreground">

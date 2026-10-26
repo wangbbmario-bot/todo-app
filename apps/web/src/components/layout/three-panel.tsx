@@ -147,6 +147,40 @@ function AppLogoMenu({
   );
 }
 
+/**
+ * BuildTag - 显示当前构建版本
+ *
+ * 2026-10-26：加这个是因为"改了但没生效"的排查成本太高 ——
+ *   用户浏览器缓存旧 chunk（尤其 nip.io 和 juststartit.cn 是两套独立缓存），
+ *   看起来像没部署。显示版本号后一眼就能确认跑的是哪一版。
+ * 版本文件由 rebuild-and-deploy.sh 在 build 前写入 public/version.json。
+ */
+function BuildTag() {
+  const [tag, setTag] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/version.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d?.tag) setTag(d.tag.replace(/^v-/, ""));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!tag) return null;
+  return (
+    <span
+      className="hidden shrink-0 cursor-default select-none rounded bg-muted/60 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground sm:inline-block"
+      title={`构建版本 ${tag}`}
+      data-testid="build-tag"
+    >
+      {tag}
+    </span>
+  );
+}
+
 // ============== 桌面布局 ==============
 function DesktopLayout() {
   const layout = useTodoStore((s) => s.layout);
@@ -174,6 +208,7 @@ function DesktopLayout() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          <BuildTag />
           <ThemeToggle />
         </div>
       </div>
@@ -264,6 +299,7 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
           {activeTab === "tasks" && (selectedList?.name ?? "任务")}
           {activeTab === "board" && (selectedList?.name ?? "画板")}
         </div>
+        <BuildTag />
         <ThemeToggle />
         {session?.user && (
           <MobileAppMenu

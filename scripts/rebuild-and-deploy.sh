@@ -44,6 +44,15 @@ if [ "$FREE_MB" -lt 600 ]; then
 fi
 
 echo "=== 启动 build ==="
+# 2026-10-26：写版本文件，让前端能显示当前跑的到底是哪一版
+#   起因：用户浏览器缓存了旧 chunk，反馈"改了但没生效"，
+#   排查发现代码是对的、线上也是新代码，只有他那个域名的浏览器缓存是旧的。
+#   public/ 会被 Dockerfile COPY 进镜像，所以这里写一次就够，不用改 Dockerfile。
+mkdir -p /opt/todo/app/apps/web/public
+printf '{"tag":"%s","builtAt":"%s","image":"todo-web:%s"}\n' \
+  "$TAG" "$(date -Iseconds)" "$TAG" > /opt/todo/app/apps/web/public/version.json
+cat /opt/todo/app/apps/web/public/version.json
+
 cd /opt/todo/app/deploy
 docker build \
   --progress=plain \

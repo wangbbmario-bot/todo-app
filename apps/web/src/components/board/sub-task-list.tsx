@@ -4,6 +4,7 @@ import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DueDatePicker } from "@/components/due-date-picker";
@@ -252,7 +253,12 @@ function SubTaskItem({
                 onClick={handleStartEdit}
                 title="单击修改名称"
               >
-                {sub.title || <span className="text-muted-foreground">单击修改名称</span>}
+                {/* 2026-10-26：URL 渲染成可点击链接（编辑态仍是纯文本） */}
+                {sub.title ? (
+                  <LinkifiedText text={sub.title} />
+                ) : (
+                  <span className="text-muted-foreground">单击修改名称</span>
+                )}
               </span>
               {/* 2026-10-10：截止日期徽章（一直显示，跟父任务 DueDateBadgeInline 一样） */}
               {sub.dueAt && <DueDateBadgeInline dueAt={sub.dueAt} data-testid="sub-task-due-badge" />}

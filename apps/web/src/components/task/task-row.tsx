@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { cn, formatDateLabel } from "@/lib/utils";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 import { PRIORITY_COLORS } from "@/lib/types";
 import type { Task } from "@/lib/types";
 
@@ -154,7 +155,8 @@ export function TaskRow({
           title={editable ? "单击修改名称" : undefined}
           onClick={handleTitleClick}
         >
-          {task.title}
+          {/* 2026-10-26：URL 渲染成可点击链接（编辑态仍是纯文本） */}
+          <LinkifiedText text={task.title} />
         </span>
       )}
 

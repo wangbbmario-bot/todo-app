@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { CheckCircle2, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 import { type SubTaskNodeData } from "./types";
 
 /**
@@ -48,7 +49,8 @@ export const SubTaskNode = memo(({ data, selected }: NodeProps) => {
             d.completed && "text-muted-foreground line-through",
           )}
         >
-          {d.title}
+          {/* 2026-10-26：URL 渲染成可点击链接 */}
+          <LinkifiedText text={d.title} />
         </span>
       </div>
     </div>

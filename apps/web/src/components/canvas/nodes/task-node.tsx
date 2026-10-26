@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Flag } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 import { PRIORITY_COLORS_LABELS } from "@/lib/node-styles";
 import { type TaskNodeData, PRIORITY_LABELS_MAP } from "./types";
 
@@ -39,7 +40,8 @@ export const TaskNode = memo(({ data, selected }: NodeProps) => {
         </span>
       </div>
       <div className="mt-1.5 truncate text-sm font-semibold text-foreground">
-        {d.title}
+        {/* 2026-10-26：URL 渲染成可点击链接 */}
+        <LinkifiedText text={d.title} />
       </div>
     </div>
   );

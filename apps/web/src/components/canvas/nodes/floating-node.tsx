@@ -5,6 +5,7 @@ import { Handle, Position, NodeProps, NodeResizer } from "@xyflow/react";
 import { Image as ImageIcon, FileText } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LinkifiedText } from "@/components/ui/linkified-text";
 import { useTodoStore } from "@/lib/stores/todo-store";
 import { type FloatingNodeData } from "./types";
 
@@ -230,7 +231,8 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
                   key={i}
                   className="break-words whitespace-pre-wrap"
                 >
-                  {line}
+                  {/* 2026-10-26：便利贴里的 URL 也渲染成可点击链接 */}
+                  <LinkifiedText text={line} />
                 </li>
               ))}
             </ul>

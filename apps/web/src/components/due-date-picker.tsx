@@ -38,7 +38,8 @@ export function DueDatePicker({ value, onChange, className, compact }: DueDatePi
         <PopoverTrigger asChild>
           <button
             className={cn(
-              "rounded p-1 transition-colors hover:bg-muted",
+              // 2026-10-26：shrink-0 —— 窄栏下日历图标不能被 flex 压扁
+              "shrink-0 rounded p-1 transition-colors hover:bg-muted",
               date && (isOverdue ? "text-date-overdue" : "text-date-upcoming"),
               !date && "text-muted-foreground",
               className,

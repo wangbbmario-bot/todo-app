@@ -78,7 +78,8 @@ export function ListTaskRow({
                   value={task.dueAt}
                   onChange={onSetDueAt}
                   compact
-                  className="opacity-0 group-hover:opacity-100"
+                  // 2026-10-26：加 shrink-0 —— 栏被拖窄时日历图标不能被压扁/裁掉
+                  className="shrink-0 opacity-0 group-hover:opacity-100"
                 />
 
                 {/* BUG-2: 删除按钮（hover）移到任务末尾 */}

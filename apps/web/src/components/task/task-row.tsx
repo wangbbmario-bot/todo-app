@@ -142,14 +142,20 @@ export function TaskRow({
           onBlur={commit}
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 rounded border border-primary/40 bg-background px-1 outline-none focus:border-primary"
+          // 2026-10-26：必须加 min-w-0
+          //   flex item 默认 min-width:auto，input 会按内容宽度撑开整行
+          //   → 左侧的完成框/优先级色条被挤出容器裁掉
+          //   → 更糟的是 focus() 会把容器横向滚到 input 位置，checkbox 直接看不见
+          className="min-w-0 flex-1 rounded border border-primary/40 bg-background px-1 outline-none focus:border-primary"
           data-testid="task-title-input"
           aria-label="任务名"
         />
       ) : (
         <span
           className={cn(
-            "flex-1 cursor-text truncate rounded px-1 hover:bg-background",
+            // 2026-10-26：min-w-0 让长标题能真正收缩（truncate 单独用不够，
+            //   flex item 默认 min-width:auto 会顶着右侧操作按钮不放）
+            "min-w-0 flex-1 cursor-text truncate rounded px-1 hover:bg-background",
             (task.status === "DONE" || task.status === "CANCELLED") && "line-through",
           )}
           title={editable ? "单击修改名称" : undefined}
@@ -163,8 +169,10 @@ export function TaskRow({
       {/* 截止日期徽章（任何状态都显示） */}
       {task.dueAt && <DueDateBadgeInline dueAt={task.dueAt} data-testid="due-badge" />}
 
-      {/* 右侧插槽（任务末尾的操作元素） */}
-      {rightChildren}
+      {/* 右侧插槽（任务末尾的操作元素）
+          2026-10-26：包一层 shrink-0 —— 栏被拖窄时右侧的日历/删除按钮
+          不能被 flex 压扁或裁掉 */}
+      <span className="flex shrink-0 items-center gap-1">{rightChildren}</span>
     </div>
   );
 }

@@ -185,7 +185,7 @@ export function TaskPanel() {
       )}
 
       {/* 任务列表区 */}
-      <ScrollArea className="flex-1 scrollbar-thin">
+      <ScrollArea className="flex-1 scrollbar-thin [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden">
         <div className="p-2">
           {tasks.length === 0 && (
             <div className="px-2 py-8 text-center text-sm text-muted-foreground">

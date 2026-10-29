@@ -19,7 +19,8 @@ export const SubTaskNode = memo(({ data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        "group min-w-[160px] rounded-lg border bg-card px-3 py-2 shadow-sm transition-all",
+        // 2026-10-29：加 max-w-[320px]（长子任务名也会把节点撑宽，导致兄弟节点互相重叠）
+        "group min-w-[160px] max-w-[320px] rounded-lg border bg-card px-3 py-2 shadow-sm transition-all",
         selected
           ? "border-primary shadow-md"
           : "border-border hover:border-primary/60",
@@ -45,7 +46,8 @@ export const SubTaskNode = memo(({ data, selected }: NodeProps) => {
         )}
         <span
           className={cn(
-            "flex-1 truncate text-xs",
+            // min-w-0：让 truncate 真正生效（父级有 max-w 后还需要它才能收缩）
+            "min-w-0 flex-1 truncate text-xs",
             d.completed && "text-muted-foreground line-through",
           )}
         >

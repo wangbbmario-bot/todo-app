@@ -48,7 +48,10 @@ export function computeInitialLayout(
     id: sub.id,
     type: "subtask",
     position: {
-      x: NODE_LAYOUT.ROOT_X + 280,
+      // 2026-10-29：根节点 max-w 280px，这里再加 CHILD_X_GAP 的间距，
+      //   让子节点左边缘 = 根节点右边缘 + 120，不再压在根节点底下
+      //   （之前固定 +280，正好等于根节点理论宽度；根节点被长标题撑宽就重叠了）
+      x: NODE_LAYOUT.ROOT_X + 280 + NODE_LAYOUT.CHILD_X_GAP,
       y: startY + i * NODE_LAYOUT.CHILD_Y_SPACING,
     },
     data: {
@@ -61,7 +64,9 @@ export function computeInitialLayout(
     id: `e-${sub.id}`,
     source: `task-${task.id}`,
     target: sub.id,
-    type: "smoothstep",
+    // 2026-10-29：smoothstep（直角折线）→ bezier（平滑曲线）
+    //   直角折线在节点多、层级深时看起来"歪歪扭扭"，思维导图更适合曲线
+    type: "bezier",
     animated: false,
     style: {
       stroke: "var(--color-primary)",

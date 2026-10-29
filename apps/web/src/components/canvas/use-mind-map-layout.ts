@@ -64,9 +64,10 @@ export function computeInitialLayout(
     id: `e-${sub.id}`,
     source: `task-${task.id}`,
     target: sub.id,
-    // 2026-10-29：smoothstep（直角折线）→ bezier（平滑曲线）
-    //   直角折线在节点多、层级深时看起来"歪歪扭扭"，思维导图更适合曲线
-    type: "bezier",
+    // 2026-10-29：改回 smoothstep（直角折线）—— 用户明确要折线不要曲线
+    //   之前"歪歪扭扭"的根因不是折线本身，而是父子节点重叠导致连线绕路，
+    //   那个问题已通过 max-w + 拉开间距修好，所以折线不会绕路了
+    type: "smoothstep",
     animated: false,
     style: {
       stroke: "var(--color-primary)",

@@ -9,7 +9,7 @@
  */
 import { useTodoStore } from "@/lib/stores/todo-store";
 
-const DEBOUNCE_MS = 1500;
+const DEBOUNCE_MS = 400;
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let lastPushedHash = "";
@@ -99,9 +99,69 @@ function hashData(d: SyncData): string {
 /** 启动自动同步：监听 store 变化，触发 debounced push */
 export function startAutoSync() {
   if (typeof window === "undefined") return;
+
+  // 删除类变化（deletedAt 变多）立即推送，不等 debounce。
+  // 删除是不可逆的用户意图，等 1.5s 反而有丢失风险（用户删完就刷新）。
+  let lastDeletedCount = 0;
+  const countDeleted = (s: ReturnType<typeof useTodoStore.getState>) =>
+    s.lists.filter((l) => l.deletedAt).length +
+    s.tasks.filter((t) => t.deletedAt).length +
+    s.subTasks.filter((t) => t.deletedAt).length +
+    s.floatingNodes.filter((f) => f.deletedAt).length;
+
   useTodoStore.subscribe((state) => {
+    const deleted = countDeleted(state);
+    if (deleted > lastDeletedCount) {
+      lastDeletedCount = deleted;
+      void pushToServer();
+      return;
+    }
+    lastDeletedCount = deleted;
     schedulePush();
     void state; // suppress lint
+  });
+  installUnloadFlush();
+}
+
+/**
+ * 页面卸载/切后台时强制推送一次
+ *
+ * 2026-10-31：用户删掉「萝卜」清单后立刻刷新，删除又回来了。
+ *   原因：删除只改了本地 store，真正的 push 被 1.5s debounce 推迟；
+ *         页面在 debounce 到期前就卸载了 → timer 被清除 → 这��� push 永远没发出。
+ *         server 上「萝卜」还是 alive，刷新后 loadFromServer 又把它拉回来。
+ *
+ * 修法：pagehide / visibilitychange(hidden) 时用 navigator.sendBeacon 同步发一次。
+ *   - sendBeacon 是浏览器保证发出的（页面卸载也能发出去），比 fetch 可靠
+ *   - 它不能带自定义 header，但后端 req.json() 不看 content-type，兼容
+ *   - 用 Blob 指定 application/json，避免被当成 text/plain
+ */
+let unloadFlushInstalled = false;
+function installUnloadFlush() {
+  if (unloadFlushInstalled || typeof window === "undefined") return;
+  unloadFlushInstalled = true;
+
+  const flush = () => {
+    try {
+      const state = useTodoStore.getState();
+      // 与 pushToServer 保持一致：虚拟系统区段（已完成/垃圾桶）不推
+      const realLists = state.lists.filter((l) => l.kind === "LIST");
+      const payload = {
+        lists: realLists as unknown[],
+        tasks: state.tasks as unknown[],
+        subTasks: state.subTasks as unknown[],
+        floatingNodes: state.floatingNodes as unknown[],
+      };
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      navigator.sendBeacon("/api/sync/bulk", blob);
+    } catch {
+      // 卸载阶段不做任何事，失败就算了（正常路径还有 debounce push 兜底）
+    }
+  };
+
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
   });
 }
 

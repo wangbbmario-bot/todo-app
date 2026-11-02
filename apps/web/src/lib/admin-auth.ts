@@ -29,17 +29,24 @@ export async function adminAuth(): Promise<
     };
   }
 
-  // 检查角色：先从 session 读，再 fallback 到 DB（避免 stale session）
-  let role = (session.user as { role?: string }).role;
-  if (!role) {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
-    role = user?.role ?? "MEMBER";
+  // 检查角色：**每次都查库**，不能只看登录时写进 session 的 role
+  // 2026-11-02：之前是 `let role = session.user.role; if (!role) 查库`
+  //   → 只要登录时是管理员，session 里就带着 ADMIN，
+  //     后来被降权/禁用，**原会话仍然能进后台**（要等 JWT 过期才失效）。
+  //   现在统一以 DB 为准：降权/禁用立刻生效。
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, deletedAt: true },
+  });
+
+  if (!user || user.deletedAt) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "账号不可用" }, { status: 403 }),
+    };
   }
 
-  if (role !== "ADMIN") {
+  if (user.role !== "ADMIN") {
     return {
       ok: false,
       response: NextResponse.json({ error: "需要 ADMIN 权限" }, { status: 403 }),

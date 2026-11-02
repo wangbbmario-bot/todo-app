@@ -16,6 +16,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/db";
+import { clientIp, rateLimitHit, rateLimitPeek, rateLimitReset } from "@/lib/rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -46,23 +47,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         phone: { label: "手机号", type: "text" },
         password: { label: "密码", type: "password" },
       },
-      async authorize(credentials) {
-        // 直接读 phone + password 明文（之前加的应用层加密 dev 卡太多轮，已回退到明文）
+      async authorize(credentials, req) {
+        // 直接读 phone + password（之前加的应用层加密 dev 卡太多轮，已回退到明文传输，
+        // 但库里只存 bcrypt 哈希，不存明文）
         const raw = credentials as Record<string, string | undefined> | undefined;
         const phone = String(raw?.phone ?? "").trim();
         const password = String(raw?.password ?? "");
 
         if (!phone || !password) return null;
 
+        // 2026-11-02：登录限速（之前完全没有 —— 可以无限次暴力破解）
+        //   账号维度 15 分钟 10 次，IP 维度 15 分钟 30 次
+        const ip = clientIp(req as unknown as Request);
+        const ipLimit = rateLimitPeek(`login-ip:${ip}`, 30, 15 * 60 * 1000);
+        if (!ipLimit.ok) return null;
+        const acctLimit = rateLimitPeek(`login:${phone}`, 10, 15 * 60 * 1000);
+        if (!acctLimit.ok) return null;
+
         const user = await prisma.user.findUnique({
           where: { phone },
-          select: { id: true, phone: true, passwordHash: true, role: true },
+          select: {
+            id: true,
+            phone: true,
+            passwordHash: true,
+            role: true,
+            // 2026-11-02：禁用 / 已软删的账号必须登不进来
+            deletedAt: true,
+          },
         });
-        if (!user?.passwordHash) return null;
+
+        // 账号不存在 / 已软删 / 已被禁用（role=DISABLED）
+        //   → 一律按"密码错误"处理，不泄露账号状态
+        if (!user || user.deletedAt || user.role === "DISABLED" || !user.passwordHash) {
+          rateLimitHit(`login:${phone}`, 15 * 60 * 1000);
+          return null;
+        }
 
         const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
+        if (!ok) {
+          rateLimitHit(`login:${phone}`, 15 * 60 * 1000);
+          return null;
+        }
 
+        rateLimitReset(`login:${phone}`);
         return {
           id: user.id,
           phone: user.phone,

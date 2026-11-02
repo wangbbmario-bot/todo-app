@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { List, CheckSquare, Network, ChevronLeft, KeyRound, LogOut, MoreVertical } from "lucide-react";
+import { List, CheckSquare, Network, ChevronLeft, KeyRound, LogOut, MoreVertical, ShieldCheck } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 import { useTodoStore, useSelectedList } from "@/lib/stores/todo-store";
@@ -12,6 +12,7 @@ import { BoardPanel } from "@/components/panels/board-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
+import { RecoveryCodeManager } from "@/components/auth/recovery-code-manager";
 import { cn } from "@/lib/utils";
 import { clearGuestCookie, isGuestMode } from "@/lib/auth/guest";
 
@@ -62,10 +63,13 @@ export function ThreePanelLayout() {
 function AppLogoMenu({
   phone,
   onChangePassword,
+  onRecoveryCode,
   onGoLogin,
 }: {
   phone: string;
   onChangePassword: () => void;
+  // 2026-11-02：查看/重新生成找回码
+  onRecoveryCode: () => void;
   // 游客点击「去登录」跳 /login；正常账号点「退出登录」调 signOut()
   onGoLogin: () => void;
 }) {
@@ -124,6 +128,23 @@ function AppLogoMenu({
             >
               <KeyRound className="mr-2 h-4 w-4" />
               修改密码
+            </button>
+          )}
+          {/* 2026-11-02：找回码入口。
+              找回码只存哈希、只在生成时展示一次 → 万一没保存就再也看不到了，
+              这里给一个"随时重新生成"的入口（旧的立即作废）。 */}
+          {!isGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                onRecoveryCode();
+                setOpen(false);
+              }}
+              className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+              data-testid="app-menu-recovery-code"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              找回码
             </button>
           )}
           {!isGuest && <div className="my-1 h-px bg-border" />}
@@ -187,6 +208,8 @@ function DesktopLayout() {
   const setLayout = useTodoStore((s) => s.setLayout);
   const { data: session } = useSession();
   const [changePwOpen, setChangePwOpen] = useState(false);
+  // 2026-11-02：找回码管理（随时重新生成）
+  const [recoveryCodeOpen, setRecoveryCodeOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
@@ -198,6 +221,7 @@ function DesktopLayout() {
             <AppLogoMenu
               phone={session.user.phone ?? ""}
               onChangePassword={() => setChangePwOpen(true)}
+              onRecoveryCode={() => setRecoveryCodeOpen(true)}
               onGoLogin={() => {
                 clearGuestCookie();
                 signOut({ callbackUrl: absoluteLoginUrl() });
@@ -214,6 +238,7 @@ function DesktopLayout() {
       </div>
 
       <ChangePasswordDialog open={changePwOpen} onOpenChange={setChangePwOpen} />
+      <RecoveryCodeManager open={recoveryCodeOpen} onOpenChange={setRecoveryCodeOpen} />
 
       <div className="flex-1 overflow-hidden">
         <PanelGroup direction="horizontal" autoSaveId="todo-three-panel">
@@ -266,6 +291,8 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
   // 2026-10-20：mobile header 也需要"改密 / 登出"入口
   //   之前只有 ThemeToggle，没有头像菜单 → mobile 用户无法改密、无法登出、被锁死
   const [changePwOpen, setChangePwOpen] = useState(false);
+  // 2026-11-02：找回码管理（随时重新生成）
+  const [recoveryCodeOpen, setRecoveryCodeOpen] = useState(false);
 
   // 选中清单或任务时，自动跳到对应 Tab
   useEffect(() => {
@@ -305,6 +332,7 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
           <MobileAppMenu
             phone={session.user.phone ?? ""}
             onChangePassword={() => setChangePwOpen(true)}
+            onRecoveryCode={() => setRecoveryCodeOpen(true)}
             onGoLogin={() => {
                 clearGuestCookie();
                 signOut({ callbackUrl: absoluteLoginUrl() });
@@ -314,6 +342,7 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
       </div>
 
       <ChangePasswordDialog open={changePwOpen} onOpenChange={setChangePwOpen} />
+      <RecoveryCodeManager open={recoveryCodeOpen} onOpenChange={setRecoveryCodeOpen} />
 
       {/* 主内容区 */}
       <div className="flex-1 overflow-hidden">
@@ -395,10 +424,12 @@ function MobileTabButton({
 function MobileAppMenu({
   phone,
   onChangePassword,
+  onRecoveryCode,
   onGoLogin,
 }: {
   phone: string;
   onChangePassword: () => void;
+  onRecoveryCode: () => void;
   onGoLogin: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -455,6 +486,23 @@ function MobileAppMenu({
             >
               <KeyRound className="mr-2 h-4 w-4" />
               修改密码
+            </button>
+          )}
+          {/* 2026-11-02：找回码入口。
+              找回码只存哈希、只在生成时展示一次 → 万一没保存就再也看不到了，
+              这里给一个"随时重新生成"的入口（旧的立即作废）。 */}
+          {!isGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                onRecoveryCode();
+                setOpen(false);
+              }}
+              className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-accent focus:bg-accent focus:outline-none"
+              data-testid="app-menu-recovery-code"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              找回码
             </button>
           )}
           {!isGuest && <div className="my-1 h-px bg-border" />}

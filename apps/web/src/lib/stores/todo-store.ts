@@ -118,6 +118,23 @@ export const useTodoStore = create<TodoState>()(
       deleteList: (id) => {
         // 清单下的任务移到垃圾桶
         // 2026-10-09：之前 filter 删本地导致软删不生效，改为设 deletedAt
+        //
+        // 2026-11-02 修「删除清单 → 刷新 → 清单又回来」（线上 bug，已复现）：
+        //   这里原来还把任务的 listId 改成了 "list-trash"。
+        //   但 "list-trash" 是【客户端虚拟清单】（SYSTEM_LISTS，todo-store.ts:511），
+        //   数据库里根本不存在 —— 而且 pushToServer 明确过滤掉非 LIST 的清单
+        //   （kind !== "LIST" 不推），所以它永远不会被写进库里。
+        //   而 Task.listId 是指向 List.id 的外键（schema.prisma:160）
+        //   → 同步时 task.upsert 报 "Foreign key constraint failed on the field: Task_listId_fkey"
+        //   → /api/sync/bulk 用的是单个 $transaction → 整体回滚
+        //   → 连清单自己的 deletedAt 都没写进去 → 刷新后清单复活。
+        //   更糟的是那个 listId="list-trash" 的脏任务会留在本地 store 里，
+        //   之后每一次 push 都 500 → 整个同步通道被毒死（连新建清单都存不进去）。
+        //
+        // 正确做法：只改 status=CANCELLED，**不改 listId**。
+        //   垃圾桶视图本来就是跨清单的 —— useTasksForList 里 listId==="list-trash"
+        //   过滤的是 status === "CANCELLED"，根本不看任务自身的 listId → 效果完全一样。
+        //   而清单行还在（只是软删），外键成立 ✓
         set((state) => ({
           lists: state.lists.map((l) =>
             l.id === id
@@ -126,7 +143,7 @@ export const useTodoStore = create<TodoState>()(
           ),
           tasks: state.tasks.map((t) =>
             t.listId === id
-              ? { ...t, status: "CANCELLED" as const, listId: "list-trash", updatedAt: new Date().toISOString() }
+              ? { ...t, status: "CANCELLED" as const, updatedAt: new Date().toISOString() }
               : t,
           ),
           selectedListId: state.selectedListId === id ? null : state.selectedListId,

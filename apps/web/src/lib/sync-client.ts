@@ -7,6 +7,8 @@
  * - 每次 mutation 后 → pushToServer()（debounce 1.5s）
  * - logout → 清本地 store
  */
+import { toast } from "sonner";
+
 import { useTodoStore } from "@/lib/stores/todo-store";
 
 const DEBOUNCE_MS = 400;
@@ -69,7 +71,10 @@ export async function pushToServer(): Promise<boolean> {
   };
   const hash = hashData(data);
   if (hash === lastPushedHash) return true;
-  lastPushedHash = hash;
+  // ⚠️ 这里【不要】设置 lastPushedHash。
+  //   以前是在 fetch 之前就设置 → push 失败（500 / 网络断）后，
+  //   后续相同数据的 push 会因为 hash 相同被这一行直接 return 掉 → **永远不重试** → 改动静默丢失。
+  //   2026-11-02：改成只有服务端明确返回 ok 才推进 hash（见下方）。
 
   // 用全量替换：先 DELETE 用户所有 entity，再 POST 全量
   // 但这样太慢。改成批量同步：实际是先 GET 拿到 server ids 列表，然后 diff
@@ -83,13 +88,32 @@ export async function pushToServer(): Promise<boolean> {
     });
     if (!res.ok) {
       console.error("[sync] push failed:", res.status);
+      notifySyncFailure();
       return false;
     }
+    // 只有成功才推进 hash —— 失败的数据还会被下一次 push 带上去
+    lastPushedHash = hash;
     return true;
   } catch (err) {
     console.error("[sync] push error:", err);
+    notifySyncFailure();
     return false;
   }
+}
+
+/**
+ * 同步失败提示（10 秒内只弹一次，避免断网时刷屏）
+ *
+ * 2026-11-02：之前失败只有 console.error，用户完全看不到。
+ * 结果就是「删除清单 → 刷新 → 清单回来了」这种数据丢失，
+ * 而用户只会看到"删不掉"，根本不知道是同步失败。
+ */
+let lastFailureToastAt = 0;
+function notifySyncFailure() {
+  const now = Date.now();
+  if (now - lastFailureToastAt < 10_000) return;
+  lastFailureToastAt = now;
+  toast.error("同步失败，改动可能没有保存，请检查网络后重试");
 }
 
 function hashData(d: SyncData): string {

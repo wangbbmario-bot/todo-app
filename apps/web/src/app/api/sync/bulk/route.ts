@@ -87,6 +87,91 @@ export async function POST(req: Request) {
   const { lists = [], tasks = [], subTasks = [], floatingNodes = [] } = body;
   const now = new Date();
 
+  // ============ 2026-11-02：Task.listId 外键兜底 ============
+  // Task.listId 是指向 List.id 的外键（schema.prisma:160）。
+  // 任务引用了库里不存在的清单时，task.upsert 会报：
+  //   "Foreign key constraint failed on the field: `Task_listId_fkey (index)`"
+  // 而本路由用的是【单个 $transaction】→ 整体回滚
+  //   → 连清单自己的 deletedAt 都没写进去 → 用户「删除清单后刷新，清单又回来」（线上 bug）。
+  //
+  // 历史成因：客户端 deleteList 会把任务的 listId 改成虚拟清单 "list-trash"，
+  //   而 list-trash 从不入库（前端只 push kind==='LIST' 的清单）。
+  //   老用户 localStorage 里可能还留着这种脏任务 → 之后每次 push 都 500
+  //   → 整个同步通道被毒死（连新建清单都存不进去）。
+  //
+  // 兜底策略：
+  //   1) 引用了「本用户拥有」的清单（哪怕已软删，行还在，外键成立）→ 原样保留
+  //   2) 引用了「不存在」或「属于别人」的清单 → 重映射到当前用户专属的回收站占位清单
+  //      （id 带 userId，天然不会和别人冲突；kind=TRASH 前端不显示，见 useUserLists）
+  const referencedListIds = Array.from(new Set(tasks.map((t) => t.listId)));
+  const foundLists = referencedListIds.length
+    ? await prisma.list.findMany({
+        where: { id: { in: referencedListIds } },
+        select: { id: true, userId: true },
+      })
+    : [];
+  const ownedListIds = new Set(
+    foundLists.filter((l) => l.userId === userId).map((l) => l.id),
+  );
+  const needsTrashList = referencedListIds.some((id) => !ownedListIds.has(id));
+  // 用户专属的回收站占位清单
+  const trashListId = `sys-trash-${userId}`;
+
+  const placeholderOps = needsTrashList
+    ? [
+        prisma.list.upsert({
+          where: { id: trashListId },
+          create: {
+            id: trashListId,
+            userId,
+            kind: "TRASH",
+            name: "回收站",
+            color: "#94A3B8",
+            order: 9999,
+            pinned: false,
+            createdAt: now,
+            updatedAt: now,
+          },
+          update: {},
+        }),
+      ]
+    : [];
+
+  const safeTasks = needsTrashList
+    ? tasks.map((t) =>
+        ownedListIds.has(t.listId) ? t : { ...t, listId: trashListId },
+      )
+    : tasks;
+
+  // ============ 2026-11-02：Task.parentId / SubTask.taskId 外键兜底 ============
+  // 这两个也是外键（schema.prisma:160 / 187），同样不能让一条脏数据把整个事务带崩。
+  //   - parentId 指向不存在的任务 → 置 null（它是可选的层级指针，置空最安全）
+  //   - 子任务指向不存在的任务 → 整条丢弃（父任务都没了，子任务没有意义）
+  // 有效任务 id = payload 里的 + 数据库里已属于当前用户的
+  const referencedTaskIds = Array.from(
+    new Set([
+      ...safeTasks.map((t) => t.parentId).filter((x): x is string => !!x),
+      ...subTasks.map((s) => s.taskId),
+    ]),
+  );
+  const foundTasks = referencedTaskIds.length
+    ? await prisma.task.findMany({
+        where: { id: { in: referencedTaskIds } },
+        select: { id: true, userId: true },
+      })
+    : [];
+  const validTaskIds = new Set([
+    ...safeTasks.map((t) => t.id),
+    ...foundTasks.filter((t) => t.userId === userId).map((t) => t.id),
+  ]);
+
+  const safeTasks2 = safeTasks.map((t) =>
+    t.parentId && !validTaskIds.has(t.parentId)
+      ? { ...t, parentId: null }
+      : t,
+  );
+  const safeSubTasks = subTasks.filter((s) => validTaskIds.has(s.taskId));
+
   // 安全校验：userId 必须是当前 session，防止越权
   // 数据已经按 userId 隔离，但 client 传来的 id 可能是别的用户的。
   // upsert 之前先 check 每个 list 属于当前 user（防伪 id 越权写）
@@ -125,7 +210,7 @@ export async function POST(req: Request) {
     );
 
     // 第二阶段：upsert Tasks
-    const taskOps = tasks.map((t) =>
+    const taskOps = safeTasks2.map((t) =>
       prisma.task.upsert({
         where: { id: t.id },
         create: {
@@ -171,7 +256,7 @@ export async function POST(req: Request) {
     );
 
     // 第三阶段：upsert SubTasks
-    const subTaskOps = subTasks.map((s) =>
+    const subTaskOps = safeSubTasks.map((s) =>
       prisma.subTask.upsert({
         where: { id: s.id },
         create: {
@@ -238,6 +323,8 @@ export async function POST(req: Request) {
 
     // 事务保证原子性：要么全部成功，要么全部失败
     await prisma.$transaction([
+      // 占位清单必须排在 tasks 前面 —— 外键要它先存在
+      ...placeholderOps,
       ...listOps,
       ...taskOps,
       ...subTaskOps,
@@ -248,9 +335,15 @@ export async function POST(req: Request) {
       ok: true,
       counts: {
         lists: lists.length,
-        tasks: tasks.length,
-        subTasks: subTasks.length,
+        tasks: safeTasks2.length,
+        subTasks: safeSubTasks.length,
         floatingNodes: floatingNodes.length,
+      },
+      // 被外键兜底丢弃/改写的脏数据条数（>0 说明客户端有脏数据，值得排查）
+      dropped: {
+        tasks: tasks.length - safeTasks2.length,
+        subTasks: subTasks.length - safeSubTasks.length,
+        remappedTasks: safeTasks2.filter((t, i) => t.listId !== tasks[i]?.listId).length,
       },
     });
   } catch (err) {

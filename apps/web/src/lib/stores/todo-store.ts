@@ -298,10 +298,16 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           tasks: state.tasks.map((t) => {
             if (t.id !== id) return t;
-            // 优先恢复到原 listId（如果还存在且是 LIST 类型），否则 fallback 到第一个 LIST
+            // 优先恢复到原 listId（如果还存在、且是 LIST 类型、且【没被软删】），
+            // 否则 fallback 到第一个「活着的」LIST。
+            // 2026-11-02：必须排除 deletedAt 的清单 ——
+            //   删清单时任务会被一起标 CANCELLED，而那个清单本身已经软删；
+            //   如果把它当目标，任务会被搬回一个"看不见的清单" → 恢复等于没恢复。
             const targetList =
-              state.lists.find((l) => l.id === t.listId && l.kind === "LIST") ??
-              state.lists.find((l) => l.kind === "LIST");
+              state.lists.find(
+                (l) => l.id === t.listId && l.kind === "LIST" && !l.deletedAt,
+              ) ??
+              state.lists.find((l) => l.kind === "LIST" && !l.deletedAt);
             if (!targetList) return t;
             return {
               ...t,

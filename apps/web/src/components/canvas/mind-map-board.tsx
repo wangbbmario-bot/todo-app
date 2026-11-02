@@ -107,16 +107,26 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
       // 对称差检测：prev 与 layout 任一节点 id 不重合（新增或删除）→ 强制重对齐
       const added = layout.nodes.some((n) => !prevIds.has(n.id));
       const removed = prev.some((n) => !layoutIds.has(n.id));
-      if (added || removed) {
-        // 增删 → 全部用 layout 位置（重新对齐，父居中）
-        return layout.nodes;
-      }
-      // 否则保留用户拖动位置（仅属性变化如 priority/title 触发）
+      // 2026-11-02：重建时必须连「选中态」一起保留。
+      //   之前只保留了 position —— 而 layout 生成的节点对象根本没有 selected 字段
+      //   → 任何一次由 store 变化触发的重建都会把用户的选中态清空。
+      //   典型触发场景：NodeResizer 的 onResizeEnd 写 store（写 width/height）
+      //   → floatingNodes 变 → 本 effect 重建 nodes → 节点丢选中
+      //   → 后果 A：刚拖完尺寸，节点上的「删除」按钮（NodeToolbar，靠 selected 显示）直接消失
+      //   → 后果 B：刚拖完尺寸再按 Backspace 删不掉节点（删除要求 selected）
+      const selectedMap = new Map(prev.map((n) => [n.id, !!n.selected]));
       const positionMap = new Map(prev.map((n) => [n.id, n.position]));
-      return layout.nodes.map((n) => ({
+      const carryOver = (n: Node): Node => ({
         ...n,
         position: positionMap.get(n.id) ?? n.position,
-      }));
+        selected: selectedMap.get(n.id) ?? false,
+      });
+      if (added || removed) {
+        // 增删 → 全部用 layout 位置（重新对齐，父居中），但选中态仍然带过去
+        return layout.nodes.map(carryOver);
+      }
+      // 否则保留用户拖动位置（仅属性变化如 priority/title 触发）
+      return layout.nodes.map(carryOver);
     });
     setEdges(computeInitialLayout(task, subTasks, floatingNodes).edges);
   }, [task.title, task.priority, subTasks, floatingNodes]); // eslint-disable-line react-hooks/exhaustive-deps

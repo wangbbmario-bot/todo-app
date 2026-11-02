@@ -10,6 +10,7 @@
 import { toast } from "sonner";
 
 import { useTodoStore } from "@/lib/stores/todo-store";
+import type { List } from "@/lib/types";
 
 const DEBOUNCE_MS = 400;
 
@@ -32,12 +33,24 @@ export async function loadFromServer(): Promise<{ ok: boolean; empty?: boolean }
   if (!res.ok) return { ok: false };
 
   const data = (await res.json()) as SyncData;
+  const lists = (data.lists || []) as List[];
+
+  // 2026-11-02：切换账号时，上个账号选中的 listId/taskId 在新账号里根本不存在
+  //   → 界面会停在"选中的清单不存在"的状态，看起来像旧数据没清干净。
+  //   规则：选中的清单还在就保留，不在就落到第一个真实清单（与 switchUser 一致）。
+  const prev = useTodoStore.getState();
+  const stillThere = lists.some((l) => l.id === prev.selectedListId);
+  const selectedListId = stillThere
+    ? prev.selectedListId
+    : (lists.find((l) => l.kind === "LIST")?.id ?? null);
 
   useTodoStore.setState({
-    lists: (data.lists || []) as never,
+    lists: lists as never,
     tasks: (data.tasks || []) as never,
     subTasks: (data.subTasks || []) as never,
     floatingNodes: (data.floatingNodes || []) as never,
+    selectedListId,
+    selectedTaskId: null,
   });
 
   // 标记已同步（hash 用于去重）
@@ -121,8 +134,15 @@ function hashData(d: SyncData): string {
 }
 
 /** 启动自动同步：监听 store 变化，触发 debounced push */
+let unsubscribeStore: (() => void) | null = null;
+
 export function startAutoSync() {
   if (typeof window === "undefined") return;
+  // 2026-11-02：幂等。
+  //   之前每次 hydrate 都 subscribe 一次，登出也没退订 →
+  //   同一次改动会被多个订阅者各推一遍（多次请求），
+  //   而且登出后订阅者还活着，会拿空 store 去推。
+  if (unsubscribeStore) return;
 
   // 删除类变化（deletedAt 变多）立即推送，不等 debounce。
   // 删除是不可逆的用户意图，等 1.5s 反而有丢失风险（用户删完就刷新）。
@@ -133,7 +153,7 @@ export function startAutoSync() {
     s.subTasks.filter((t) => t.deletedAt).length +
     s.floatingNodes.filter((f) => f.deletedAt).length;
 
-  useTodoStore.subscribe((state) => {
+  unsubscribeStore = useTodoStore.subscribe((state) => {
     const deleted = countDeleted(state);
     if (deleted > lastDeletedCount) {
       lastDeletedCount = deleted;
@@ -189,10 +209,17 @@ function installUnloadFlush() {
   });
 }
 
-/** 关闭自动同步 */
+/** 关闭自动同步（退订 + 清 timer） */
 export function stopAutoSync() {
   if (debounceTimer) {
     clearTimeout(debounceTimer);
     debounceTimer = null;
+  }
+  // 2026-11-02：必须退订。
+  //   之前只清了 timer，订阅者还活着 → 登出后任何 store 变化（含 reset 本身）
+  //   都会触发一次 pushToServer（拿空 store 推），既噪音又可能误操作。
+  if (unsubscribeStore) {
+    unsubscribeStore();
+    unsubscribeStore = null;
   }
 }

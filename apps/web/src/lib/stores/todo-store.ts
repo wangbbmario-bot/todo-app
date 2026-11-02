@@ -138,7 +138,14 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           lists: state.lists.map((l) =>
             l.id === id
-              ? { ...l, deletedAt: new Date().toISOString() }
+              ? {
+                  ...l,
+                  deletedAt: new Date().toISOString(),
+                  // 2026-11-02：删除必须 bump updatedAt —— 它是服务端的乐观锁版本号。
+                  //   不 bump 的话：删除这一行的 updatedAt 还是旧值 → 服务端认为"这个客户端
+                  //   数据陈旧" → 反而把删除挡掉；或者被另一个旧标签页的同版本数据覆盖 → 清单复活。
+                  updatedAt: new Date().toISOString(),
+                }
               : l,
           ),
           tasks: state.tasks.map((t) =>
@@ -361,7 +368,8 @@ export const useTodoStore = create<TodoState>()(
       toggleSubTask: (id) => {
         set((state) => ({
           subTasks: state.subTasks.map((s) =>
-            s.id === id ? { ...s, completed: !s.completed } : s,
+            // 2026-11-02：每次修改都要 bump updatedAt（服务端乐观锁的版本号）
+            s.id === id ? { ...s, completed: !s.completed, updatedAt: new Date().toISOString() } : s,
           ),
         }));
       },
@@ -371,7 +379,7 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           subTasks: state.subTasks.map((s) =>
             s.id === id
-              ? { ...s, deletedAt: new Date().toISOString() }
+              ? { ...s, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
               : s,
           ),
         }));
@@ -380,7 +388,7 @@ export const useTodoStore = create<TodoState>()(
       updateSubTaskTitle: (id, title) => {
         set((state) => ({
           subTasks: state.subTasks.map((s) =>
-            s.id === id ? { ...s, title } : s,
+            s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s,
           ),
         }));
       },
@@ -417,7 +425,12 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           floatingNodes: state.floatingNodes.map((n) =>
             n.id === id
-              ? { ...n, deletedAt: new Date().toISOString() }
+              ? {
+                  ...n,
+                  deletedAt: new Date().toISOString(),
+                  // 2026-11-02：同 deleteList —— 删除要 bump updatedAt（服务端乐观锁版本号）
+                  updatedAt: new Date().toISOString(),
+                }
               : n
           ),
         }));
@@ -425,7 +438,8 @@ export const useTodoStore = create<TodoState>()(
       updateFloatingNode: (id, patch) => {
         set((state) => ({
           floatingNodes: state.floatingNodes.map((n) =>
-            n.id === id ? { ...n, ...patch } : n,
+            // 2026-11-02：同样要 bump updatedAt，否则改动会被服务端的乐观锁判成"陈旧"而丢弃
+            n.id === id ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n,
           ),
         }));
       },

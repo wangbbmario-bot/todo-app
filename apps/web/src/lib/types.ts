@@ -43,6 +43,8 @@ export interface SubTask {
   completed: boolean;
   order: number;
   createdAt: string;
+  // 2026-11-02：updatedAt 是服务端乐观锁的版本号（多端冲突时用它判断谁的数据更旧）
+  updatedAt?: string;
   dueAt?: string;            // 2026-10-09：子任务也支持截止日期
   deletedAt?: string | null; // 2026-10-09：软删除时间戳
 }
@@ -64,6 +66,7 @@ export interface FloatingNode {
   height?: number;
   taskId?: string | null; // BUG-15(z2-15)：所属任务（用于隔离）
   createdAt: string;
+  updatedAt?: string;       // 2026-11-02：乐观锁版本号
   deletedAt?: string | null;  // 2026-10-09：软删除时间戳
 }
 

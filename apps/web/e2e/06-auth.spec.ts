@@ -112,7 +112,7 @@ test.describe("F. 登录 / 注册 / 找回密码", () => {
     expect(text ?? "").toMatch(/不可用|管理员/);
   });
 
-  test("F-FORGOT-2: 登录页有"忘记密码"链接", async ({ page }) => {
+  test("F-FORGOT-2: 登录页有「忘记密码」链接", async ({ page }) => {
     await page.goto("/login");
     // 检查有没有指向 /forgot-password 的链接
     const link = page.locator('a[href="/forgot-password"]');

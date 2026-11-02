@@ -306,6 +306,11 @@ export const useTodoStore = create<TodoState>()(
             return {
               ...t,
               status: "TODO",
+              // 2026-11-02：必须把 listId 搬到 targetList。
+              //   之前只改了 status → 任务状态变回 TODO 后它从回收站消失了，
+              //   但 listId 还指着 list-trash（虚拟清单，库里不存在）
+              //   → 它既不在任何普通清单里，也回不到原来的清单，等于消失了。
+              listId: targetList.id,
               completedAt: undefined,
               updatedAt: new Date().toISOString(),
             };

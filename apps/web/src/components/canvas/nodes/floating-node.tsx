@@ -1,8 +1,14 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { Handle, Position, NodeProps, NodeResizer } from "@xyflow/react";
-import { Image as ImageIcon, FileText } from "lucide-react";
+import {
+  Handle,
+  NodeToolbar,
+  Position,
+  NodeProps,
+  NodeResizer,
+} from "@xyflow/react";
+import { Image as ImageIcon, FileText, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LinkifiedText } from "@/components/ui/linkified-text";
@@ -175,6 +181,40 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         position={Position.Right}
         className="!h-2 !w-2 !bg-amber-500 !border-2 !border-background"
       />
+
+      {/* 2026-11-02：删除入口
+          此前删除便利贴只有一条隐藏路径：「单击 → Esc 退出编辑 → 按 Backspace」
+          （因为单击必然进入编辑态，而 Backspace 删节点的前置条件是 selected && !editing）。
+          用户反馈「单击再按 Backspace 是删里面的内容，我要删节点咋操作」——
+          说明这条路径根本不可发现。
+          现在选中节点即在便签上方弹出「删除」按钮：
+            - 用 RF 的 NodeToolbar 渲染在节点【外侧】，不与四个角的缩放拖手抢位置
+              （拖手在边框外 4px，工具栏在节点上方 12px）
+            - 不和便签正文重叠
+            - 软删除（removeFloatingNode 只设 deletedAt），误删可恢复
+          键盘路径（Esc + Backspace）保留，两条路都通。 */}
+      <NodeToolbar
+        isVisible={selected}
+        position={Position.Top}
+        align="end"
+        offset={12}
+        className="nodrag nopan"
+      >
+        <button
+          type="button"
+          data-testid="floating-delete"
+          aria-label="删除这个游离节点"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            useTodoStore.getState().removeFloatingNode(id);
+          }}
+          className="flex items-center gap-1 rounded-md border border-border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-destructive hover:bg-destructive hover:text-destructive-foreground"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          删除
+        </button>
+      </NodeToolbar>
 
       {editing ? (
         // 第五轮 BUG5a：图片节点以前编辑时图片整个消失（编辑态只渲染 textarea），

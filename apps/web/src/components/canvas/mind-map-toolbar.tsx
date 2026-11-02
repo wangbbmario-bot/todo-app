@@ -52,7 +52,10 @@ export function MindMapHint() {
   return (
     <FlowPanel position="bottom-left" className="m-2">
       <div className="rounded-md bg-background/80 px-2 py-1 text-xs text-muted-foreground backdrop-blur">
-        💡 单击节点切换完成 · 双击改名 · 拖动调整位置
+        {/* 2026-11-02：文案改成真实行为。
+            原文「单击节点切换完成 · 双击改名」对便利贴是错的：
+            便利贴单击 = 进编辑态（不是切换完成），而且删除入口完全没提到。 */}
+        💡 任务单击切换完成 · 便利贴单击编辑 · 选中后按 Backspace 删除 · 拖动调整位置和大小
       </div>
     </FlowPanel>
   );

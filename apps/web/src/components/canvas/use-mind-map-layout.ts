@@ -90,7 +90,12 @@ export function computeInitialLayout(
       // 并同步到 wrapper 的 style，视觉上就是"实时生效"。
       // 如果只在 data 里给尺寸，组件再用 style={{width: d.width}} 渲染，
       // 每次 React 重渲染都会把 RF 刚写好的实时尺寸覆盖回旧值 → 表现为"松手才生效"。
-      width: fn.width,
+      //
+      // 2026-11-02：width 必须给兜底值（fn.width ?? 220）。
+      //   便利贴内层改成 w-full（填满 wrapper）后，wrapper 必须有确定宽度，
+      //   否则 wrapper 是 auto（shrink-to-fit），便签宽度会跟着文字内容走 —— 反而更糟。
+      //   220 = 之前组件内层的默认值，保持视觉一致。
+      width: fn.width ?? 220,
       height: fn.height,
       data: {
         title: fn.title,

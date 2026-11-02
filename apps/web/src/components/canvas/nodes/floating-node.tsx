@@ -77,7 +77,10 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
         // React Flow 的 resize 拖手定位在节点边框「外侧」（bottom:-4px / right:-4px），
         // 一旦 overflow:hidden 就把拖手裁掉 → 看不见也点不到 → 拖拽彻底失效。
         // 内容不溢出改由内容区自己负责（下面 textarea/div 都是 h-full + overflow-y-auto）。
-        "group relative rounded-lg shadow-sm",
+        // 2026-11-02：w-full / h-full —— 填满 RF 的 node wrapper。
+        //   wrapper 的 inline width/height 由 RF 在拖动时实时改写，
+        //   内层填满它 = 便利贴本体跟着实时变大（详见下面 style 的注释）。
+        "group relative h-full w-full rounded-lg shadow-sm",
         // 2026-10-20：去掉 max-w-[400px]
         // 它会盖住 NodeResizer 的 maxWidth（600），导致"往大拖没反应"
         // 下限交给 style.minWidth，与 NodeResizer minWidth 保持一致
@@ -96,12 +99,20 @@ export const FloatingNode = memo(({ id, data, selected }: NodeProps) => {
       )}
       data-testid="floating-node"
       style={{
-        // 第五轮 BUG4b：这两个值只作为「首次渲染的初始尺寸」。
-        // 一旦用户拖动，RF 的 setAttributes 会把实时尺寸写到 node wrapper 的 inline style，
-        // 而 React 对未变化的 style prop 不会重写 → 所以拖动过程中视觉是实时跟手的。
-        // （layout 里也把 width/height 放到了 node 顶层，两边保持一致）
-        width: d.width ?? 220,
-        height: d.height,
+        // 2026-11-02 修「缩放要实时，不能等松手」：
+        // 根因 —— RF 的 NodeResizer 拖动时通过 setAttributes 实时改 node.width/height，
+        //   这两个值最终写进 **node wrapper**（.react-flow__node）的 inline style，
+        //   所以 wrapper 是实时变大的（实测 300→311→322→…→389）。
+        //   但这里原来写死了 width: d.width / height: d.height（来自 store 的旧值），
+        //   React 每次重渲染都把内层 div 拽回旧尺寸 → 便利贴本体看起来「松手才变大」。
+        //   而右下角 MiniMap 是实时的，因为它读的是 measured / node.width，不是这里的 style。
+        //   → 用户看到的现象就是「预览窗实时、便签不实时」。
+        // 修法 —— 内层不自己定尺寸，改为填满 wrapper（w-full h-full）。
+        //   wrapper 的尺寸由 RF 唯一权威来源（node.width/height）驱动，
+        //   拖动时 wrapper 变 → 内层跟着变 → 便签与 MiniMap 完全同步，且都是实时的。
+        // 尺寸的「持久化」仍然只走 onResizeEnd（写 store），
+        // 拖动过程中绝不写 store —— 否则会触发 use-mind-map-layout 重建 nodes、
+        // 清空 measured → RF 反复重测 → 画板死循环变空白（第五轮 BUG4b 踩过）。
         minWidth: 140,
         minHeight: 80,
         // 第六轮：选中态阴影走 inline style，不用 Tailwind arbitrary class

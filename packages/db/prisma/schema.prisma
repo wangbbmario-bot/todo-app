@@ -48,9 +48,13 @@ model User {
   phone         String    @unique
   emailVerified DateTime?
   passwordHash  String?
-  // 找回密码用：明文存库，验证时比对 passwordPlain.includes(hint)
-  // ⚠️ 安全提示：明文存库，2 字符提示可能被暴力破解（用户明确选择此方案）
-  passwordPlain String?
+  // 2026-11-02：找回码（bcrypt 哈希），替代原来的「明文密码 + 2 字符提示」
+  //   原来的方案把 passwordPlain 明文存库，且只要猜中原密码任意连续 2 个字符
+  //   就能换到重置令牌 —— 知道手机号就等于能接管账号。已整体移除。
+  recoveryCodeHash  String?
+  // 找回失败次数 / 锁定截止时间（DB 持久化，进程重启也挡得住）
+  recoveryFailCount Int       @default(0)
+  recoveryLockUntil DateTime?
 
   locale        String    @default("zh-CN")
   timezone      String    @default("Asia/Shanghai")

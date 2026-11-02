@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { generateRecoveryCode, hashRecoveryCode } from "@/lib/recovery-code";
 
 const RegisterSchema = z.object({
   phone: z
@@ -68,12 +69,16 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  // 2026-11-02：不再存明文密码。
+  //   找回密码改为「找回码」机制：注册时生成一串高熵码给用户保存，
+  //   库里只存它的 bcrypt 哈希（原来那套"明文 + 2 字符提示"等于门户大开）。
+  const recoveryCode = generateRecoveryCode();
+  const recoveryCodeHash = await hashRecoveryCode(recoveryCode);
   const user = await prisma.user.create({
     data: {
       phone,
       passwordHash,
-      // 找回密码用：明文存库
-      passwordPlain: password,
+      recoveryCodeHash,
     },
     select: { id: true, phone: true },
   });
@@ -81,5 +86,6 @@ export async function POST(req: Request) {
   // 注册成功后自动 seed 5 个默认清单
   await seedDefaultLists(user.id);
 
-  return NextResponse.json({ ok: true, user });
+  // 找回码只在这里回传一次，库里只有哈希 —— 前端要提示用户保存
+  return NextResponse.json({ ok: true, user, recoveryCode });
 }

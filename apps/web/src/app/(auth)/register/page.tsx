@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { RecoveryCodeDialog } from "@/components/auth/recovery-code-dialog";
 
 // 注册页依赖 session，不能在 build 时 pre-render
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const onSubmit = (e: React.FormEvent) => {
@@ -50,6 +52,11 @@ export default function RegisterPage() {
         setError(data?.error || "注册失败");
         return;
       }
+      // 2026-11-02：注册成功 → 先让用户保存找回码（找回密码要用）
+      //   库里只存它的 bcrypt 哈希，明文只在这里给一次
+      if (data?.recoveryCode) {
+        setRecoveryCode(data.recoveryCode);
+      }
       // 自动登录
       const signInRes = await signIn("credentials", {
         phone,
@@ -68,6 +75,13 @@ export default function RegisterPage() {
 
   return (
     <Card>
+      <RecoveryCodeDialog
+        open={!!recoveryCode}
+        code={recoveryCode}
+        onClose={() => setRecoveryCode(null)}
+        title="这是你的找回码，请立刻保存"
+        description="以后忘记密码时要用它（配合手机号）。系统只保存它的哈希，这个码只显示这一次。"
+      />
       <CardHeader>
         <CardTitle>注册账号</CardTitle>
       </CardHeader>

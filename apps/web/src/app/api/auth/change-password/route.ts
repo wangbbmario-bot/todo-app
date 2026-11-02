@@ -61,8 +61,7 @@ export async function POST(req: Request) {
     where: { id: user.id },
     data: {
       passwordHash,
-      // 找回密码用：明文存库
-      passwordPlain: newPassword,
+      // 2026-11-02：不再写明文密码（找回密码改用找回码机制）
       updatedAt: new Date(),
     },
   });

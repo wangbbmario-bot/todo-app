@@ -1,19 +1,18 @@
 /**
- * 找回密码 - 临时 token 管理（dev 环境）
+ * 找回密码 - 临时 token 管理
  *
- * SECURITY (dev-only):
- * 用户偏好"模糊密码提示"验证身份（bcrypt 单向不可逆，不能 substring）。
- * 因此 schema 里同时存了 passwordPlain（明文）。
+ * 2026-11-02 安全修复：
+ *   之前这里是「明文密码 + 2 字符提示」方案 —— schema 里存 passwordPlain（明文），
+ *   forgot-password 用 passwordPlain.includes(hint) 判定，hint 最少 2 个字符，
+ *   等于「知道手机号 + 猜中 2 个字符」就能接管账号，且接口无限速。
+ *   现在改成「找回码」机制：
+ *     - schema 不再存明文密码（passwordPlain 列已 DROP）
+ *     - 找回码只存 bcrypt 哈希（见 lib/recovery-code.ts）
+ *     - 找回接口有账号维度（DB 持久化）+ IP 维度（内存）双层限速
  *
- * 这种方式安全性极低：猜密码门槛从 8+ 位降到 2 位，暴力破解 10 秒。
- *
- * 生产前必须二选一：
- *   (a) 删 schema.passwordPlain 字段 + 改 SMS OTP（lib 里有预留接口）
- *   (b) 接 SendGrid 邮箱验证码 / Twilio 短信
- *
- * 当前 dev 流程：
- *   forgot-password: hint 匹配 → 发放临时 token（5 分钟有效，单次使用）
- *   reset-password: 校验 token → 改 passwordHash + plaintextPassword
+ * 当前流程：
+ *   forgot-password: 校验找回码（或老账号的完整密码）→ 发放临时 token（5 分钟有效、单次使用）
+ *   reset-password:  校验 token → 改 passwordHash + 轮换找回码（旧码立即作废）
  */
 
 interface ResetToken {

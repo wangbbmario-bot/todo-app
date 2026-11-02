@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionStoreSync } from "@/components/session-store-sync";
+import { RecoveryCodeNotice } from "@/components/auth/recovery-code-notice";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import "./globals.css";
 
@@ -61,6 +62,8 @@ export default function RootLayout({
           <TooltipProvider delayDuration={300}>
             <SessionProvider>
               <SessionStoreSync />
+              {/* 2026-11-02：老账号登录后提示生成找回码（找回密码的新凭据） */}
+              <RecoveryCodeNotice />
               <AnnouncementBanner />
               {children}
               {/* 第五轮 BUG3：「任务已完成」弹窗不要全局居中（top-center），

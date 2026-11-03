@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Brain,
@@ -14,7 +13,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { clearGuestCookie } from "@/lib/auth/guest";
 
 /**
  * LandingPage - 公开落地页（无需登录即可查看）
@@ -30,7 +28,6 @@ import { clearGuestCookie } from "@/lib/auth/guest";
  * 数据仍然受登录保护（API 全部要 session），落地页不暴露任何用户数据。
  */
 export function LandingPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -44,9 +41,16 @@ export function LandingPage() {
           setError(data.error ?? "游客模式暂不可用");
           return;
         }
-        clearGuestCookie();
-        router.push("/");
-        router.refresh();
+        // 2026-11-03：用【整页跳转】而不是 router.push。
+        //   客户端导航不会重新 mount 根组件：
+        //     1) SessionProvider 里的 session 不会更新 → useSession 仍是未登录
+        //        → 首页按登录态分流，仍然渲染落地页（点了没反应）
+        //     2) store 里可能还留着上一个用户的残留数据
+        //   （登录页的游客流程是同样的处理，见 app/(auth)/login/page.tsx 的注释）
+        //
+        //   注意：这里【不要】调 clearGuestCookie() ——
+        //   那是真实账号登录后才清游客标记用的；游客模式是服务端种下这个 cookie 的。
+        window.location.assign("/");
       } catch {
         setError("网络错误，请稍后再试");
       }

@@ -70,20 +70,36 @@ docker tag "todo-web:${TAG}" todo-web:latest
 docker tag "todo-web:${TAG}" todo-web:v-stable-stable
 
 echo "=== 应用 prisma migrations（在重启前） ==="
-# 用一个临时容器跑 migrate deploy（自带 prisma CLI + @prisma/client）
-# 先设 npm registry 到 npmmirror（中国 server 必须）
-docker run --rm \
-  --network "${PROJECT_NAME}_default" \
-  -e DATABASE_URL="$DATABASE_URL" \
-  -v /opt/todo/app/packages/db:/db \
-  -w /db \
-  node:20-alpine sh -c "
-    set -e
-    apk add --no-cache openssl 2>&1 | tail -1
-    npm config set registry https://registry.npmmirror.com
-    npm install --no-save --silent prisma@5.16.0 @prisma/client@5.16.0 2>&1 | tail -2
-    npx prisma migrate deploy 2>&1
-  " 2>&1 | tail -10
+# 2026-11-03：先比对「本地迁移目录数」与「库里已应用数」，
+#   没有待应用迁移就直接跳过 —— 原来每次部署都要现装一次 prisma CLI
+#   （npm install prisma@5.16.0，国内 npmmirror 要 3~8 分钟，纯属浪费）。
+# 判定：本地 > 已应用 → 有新迁移，跑 migrate deploy；相等 → 跳过。
+#   迁移失败时 finished_at 为 NULL，不计入已应用数 → 仍会重跑，符合预期。
+MIGRATIONS_DIR="/opt/todo/app/packages/db/prisma/migrations"
+LOCAL_MIGRATIONS=$(ls -1 "$MIGRATIONS_DIR" 2>/dev/null | grep -c '^[0-9]' || echo 0)
+APPLIED_MIGRATIONS=$(docker exec todo-db psql -U "$DB_USER" -d "$DB_NAME" -t -A -c \
+  "SELECT count(*) FROM \"_prisma_migrations\" WHERE finished_at IS NOT NULL" 2>/dev/null | tr -d ' \r\n' || echo 0)
+[ -z "$APPLIED_MIGRATIONS" ] && APPLIED_MIGRATIONS=0
+
+if [ "${LOCAL_MIGRATIONS:-0}" -gt "${APPLIED_MIGRATIONS:-0}" ]; then
+  echo "  有待应用迁移（本地 ${LOCAL_MIGRATIONS} / 已应用 ${APPLIED_MIGRATIONS}），执行 migrate deploy"
+  # 用一个临时容器跑 migrate deploy（自带 prisma CLI + @prisma/client）
+  # 先设 npm registry 到 npmmirror（中国 server 必须）
+  docker run --rm \
+    --network "${PROJECT_NAME}_default" \
+    -e DATABASE_URL="$DATABASE_URL" \
+    -v /opt/todo/app/packages/db:/db \
+    -w /db \
+    node:20-alpine sh -c "
+      set -e
+      apk add --no-cache openssl 2>&1 | tail -1
+      npm config set registry https://registry.npmmirror.com
+      npm install --no-save --silent prisma@5.16.0 @prisma/client@5.16.0 2>&1 | tail -2
+      npx prisma migrate deploy 2>&1
+    " 2>&1 | tail -10
+else
+  echo "  ✅ 无待应用迁移（本地 ${LOCAL_MIGRATIONS} / 已应用 ${APPLIED_MIGRATIONS}），跳过"
+fi
 
 echo "=== 重启容器（保留 data volumes）==="
 # 2026-10-20：只重建 web，不能用裸 `up -d`

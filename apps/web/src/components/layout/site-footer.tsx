@@ -10,7 +10,7 @@ import { ICP_NUMBER, SITE_NAME } from "@/lib/site-meta";
 export function SiteFooter({ className = "" }: { className?: string }) {
   return (
     <footer
-      className={`flex shrink-0 items-center justify-center gap-1 border-t bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground ${className}`}
+      className={`flex shrink-0 items-center justify-center gap-2 border-t bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground ${className}`}
       data-testid="site-footer"
     >
       <span>© {new Date().getFullYear()} {SITE_NAME}</span>

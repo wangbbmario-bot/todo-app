@@ -21,6 +21,10 @@ function isLoggedIn(req: NextRequest): boolean {
 }
 
 const PUBLIC_PATHS = [
+  // 2026-11-03：ICP 备案审核要求「审核时能直接看到网站内容」，
+  //   所以首页要公开（未登录看到的是产品落地页，不是登录框）。
+  //   数据仍然受保护：所有业务接口都要 session。
+  "/",
   "/login",
   "/register",
   "/forgot-password",

@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
 import { RecoveryCodeManager } from "@/components/auth/recovery-code-manager";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { cn } from "@/lib/utils";
 import { clearGuestCookie, isGuestMode } from "@/lib/auth/guest";
 
@@ -274,6 +275,9 @@ function DesktopLayout() {
           </Panel>
         </PanelGroup>
       </div>
+
+      {/* 2026-11-03：底部备案号（ICP 备案要求页面底部标示备案编号） */}
+      <SiteFooter />
     </div>
   );
 }
@@ -386,6 +390,9 @@ function MobileLayout({ activeTab, setActiveTab }: MobileLayoutProps) {
           label="画板"
         />
       </div>
+
+      {/* 2026-11-03：底部备案号（ICP 备案要求页面底部标示备案编号） */}
+      <SiteFooter />
     </div>
   );
 }

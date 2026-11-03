@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { auth } from "@/lib/auth/config";
 import { prisma } from "@/lib/db";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 /**
  * /admin/layout - 管理后台布局
@@ -31,7 +32,8 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-muted/30">
+    <div className="flex h-screen flex-col bg-muted/30">
+      <div className="flex min-h-0 flex-1">
       <aside className="flex w-56 shrink-0 flex-col border-r bg-card">
         <div className="border-b px-4 py-3">
           <Link href="/" className="text-sm font-semibold hover:underline">
@@ -88,6 +90,10 @@ export default async function AdminLayout({
         </div>
       </aside>
       <main className="flex-1 overflow-auto p-6">{children}</main>
+      </div>
+
+      {/* 2026-11-03：底部备案号（ICP 备案要求页面底部标示备案编号） */}
+      <SiteFooter />
     </div>
   );
 }

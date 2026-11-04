@@ -91,6 +91,12 @@ pnpm --filter web dev
 
 打开 http://localhost:3000
 
+提交前跑一下类型检查（当前**零报错**）：
+
+```bash
+pnpm type-check
+```
+
 ---
 
 ## Docker 部署（生产）

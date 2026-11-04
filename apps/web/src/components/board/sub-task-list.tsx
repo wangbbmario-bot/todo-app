@@ -163,11 +163,12 @@ function SubTaskItem({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
+    const input = inputRef.current;
+    if (editing && input) {
+      input.focus();
       // 2026-10-20 改：光标定位末尾而不是 select-all
-      const len = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(len, len);
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
     }
   }, [editing]);
 

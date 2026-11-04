@@ -139,7 +139,7 @@ export function TaskRow({
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+          onBlur={() => commit()}
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
           // 2026-10-26：必须加 min-w-0

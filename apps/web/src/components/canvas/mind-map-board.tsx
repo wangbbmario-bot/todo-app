@@ -136,11 +136,14 @@ export function MindMapBoard({ task, subTasks }: MindMapBoardProps) {
     setNodes((nds) => applyNodeChanges(changes, nds));
     // 同步 floating 节点拖动位置 + 调整大小回 store
     changes.forEach((ch) => {
-      if (ch.id?.startsWith("float-")) {
+      // NodeChange 是联合类型：add 变体没有 id 字段，先收窄再判断
+      // （运行时行为不变：没有 id 的 change 本来就被 startsWith 过滤掉了）
+      const nodeId = "id" in ch && typeof ch.id === "string" ? ch.id : undefined;
+      if (nodeId?.startsWith("float-")) {
         if (ch.type === "position" && ch.position) {
           useTodoStore.setState((state) => ({
             floatingNodes: state.floatingNodes.map((n) =>
-              n.id === ch.id ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
+              n.id === nodeId ? { ...n, x: ch.position!.x, y: ch.position!.y } : n,
             ),
           }));
         }

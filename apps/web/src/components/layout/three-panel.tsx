@@ -447,7 +447,7 @@ function MobileAppMenu({
   // 点外面关闭（桌面 AppLogoMenu 没有这个处理，触屏更容易点飞）
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => {
+    const close = (e: Event) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }

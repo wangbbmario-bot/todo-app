@@ -14,15 +14,18 @@ export function SiteFooter({ className = "" }: { className?: string }) {
       data-testid="site-footer"
     >
       <span>© {new Date().getFullYear()} {SITE_NAME}</span>
-      <a
-        href="https://beian.miit.gov.cn/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:text-primary hover:underline"
-        data-testid="site-footer-icp"
-      >
-        {ICP_NUMBER}
-      </a>
+      {/* 没配 NEXT_PUBLIC_ICP_NUMBER 就不渲染备案号链接 —— 开源模板默认不冒名任何主体 */}
+      {ICP_NUMBER && (
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-primary hover:underline"
+          data-testid="site-footer-icp"
+        >
+          {ICP_NUMBER}
+        </a>
+      )}
     </footer>
   );
 }

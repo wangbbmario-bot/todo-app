@@ -33,6 +33,10 @@ fi
 DB_USER=$(grep '^DB_USER=' "$ENV_FILE" | cut -d= -f2)
 DB_PASSWORD=$(grep '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2)
 DB_NAME=$(grep '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)
+# NEXT_PUBLIC_* 会在构建时被内联进前端 bundle → 必须在 docker build 之前读出来当 build-arg 传
+# 不传的话页脚备案号会是空的（上次改配置时踩过：compose 读 .env，build 也得读同一份）
+ICP_NUMBER=$(grep '^NEXT_PUBLIC_ICP_NUMBER=' "$ENV_FILE" | cut -d= -f2- || true)
+POLICE_NUMBER=$(grep '^NEXT_PUBLIC_POLICE_NUMBER=' "$ENV_FILE" | cut -d= -f2- || true)
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
 
 echo "=== 内存检查（防 OOM kill dockerd） ==="
@@ -56,6 +60,8 @@ cat /opt/todo/app/apps/web/public/version.json
 cd /opt/todo/app/deploy
 docker build \
   --progress=plain \
+  --build-arg NEXT_PUBLIC_ICP_NUMBER="$ICP_NUMBER" \
+  --build-arg NEXT_PUBLIC_POLICE_NUMBER="$POLICE_NUMBER" \
   -f ../apps/web/Dockerfile.prod \
   -t "todo-web:${TAG}" \
   .. 2>&1 | tee "$LOG"

@@ -46,6 +46,9 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       AUTH_TRUST_HOST: true
       DOMAIN: ${DOMAIN}
+      # 备案号等主体信息：构建期经 build-arg 内联，这里再给一份兜住运行期读取
+      NEXT_PUBLIC_ICP_NUMBER: ${NEXT_PUBLIC_ICP_NUMBER:-}
+      NEXT_PUBLIC_POLICE_NUMBER: ${NEXT_PUBLIC_POLICE_NUMBER:-}
       FEISHU_WEBHOOK_URL: ${FEISHU_WEBHOOK_URL:-}
       UPLOAD_DIR: /data/uploads
       NODE_ENV: production

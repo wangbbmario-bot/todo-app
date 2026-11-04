@@ -134,6 +134,7 @@ curl https://你的域名/version.json
 | `NEXTAUTH_SECRET` | ✅ | `openssl rand -base64 32` 生成 |
 | `DOMAIN` | ✅ | 正式域名（Caddy 据此申请证书并反代） |
 | `GUEST_PHONE` / `GUEST_PASSWORD` | ❌ | 不配则登录页不显示「游客体验」；**务必与手机号不同** |
+| `NEXT_PUBLIC_ICP_NUMBER` | ❌ | 工信部备案号，渲染在页脚；**改完要重新 build**（构建期内联进前端 bundle） |
 
 > `environment` 在 compose 里是**白名单**：`.env` 里加了变量但 compose 没列 → 容器里根本没有那个变量。
 
@@ -198,6 +199,8 @@ AGENTS.md            工程约定与踩坑记录（这个仓库的「说明书�
 - 真实**手机号、密码、user id** 已从 e2e 用例、清理脚本、文档中移除，改为环境变量注入
 - 数据库里的**明文密码列**已在迁移中彻底删除，找回密码改用「找回码」（bcrypt 哈希）
 - 文档与注释里的服务器 IP 泛化成 `<server-ip>`；部署配置里保留的是**功能性引用**
+- **备案号不硬编码**：`NEXT_PUBLIC_ICP_NUMBER` 走环境变量注入（构建期 build-arg + 运行期 compose 双通道），
+  模板默认不冒名任何主体；境内正式对外提供服务前请自行填
 - `public/version.json` 是构建期产物，已加入 `.gitignore`
 
 ---

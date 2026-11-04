@@ -48,6 +48,12 @@ RUN pnpm --filter @todo/db generate
 
 # 构建 Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* 会在构建时被内联进 bundle，所以必须在 build 之前注入
+# 备案号等「主体信息」不写死在代码里，由部署方通过 --build-arg 传进来
+ARG NEXT_PUBLIC_ICP_NUMBER=""
+ARG NEXT_PUBLIC_POLICE_NUMBER=""
+ENV NEXT_PUBLIC_ICP_NUMBER=$NEXT_PUBLIC_ICP_NUMBER
+ENV NEXT_PUBLIC_POLICE_NUMBER=$NEXT_PUBLIC_POLICE_NUMBER
 RUN pnpm --filter web build
 
 # ---------- 阶段 2: 运行时 ----------

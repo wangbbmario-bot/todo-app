@@ -30,10 +30,24 @@ BACKUP_ROOT="/opt/${PROJECT}/.backup"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOG_PREFIX="[backup:${PROJECT}]"
 
-# ---------- 读数据库凭据 ----------
-ENV_FILE="/opt/${PROJECT}/deploy/.env"
-if [ ! -f "$ENV_FILE" ]; then
-  echo "${LOG_PREFIX} 找不到 $ENV_FILE" >&2
+# ---------- 定位项目目录与数据库容器 ----------
+# 项目根目录有两种布局（todo 就是历史遗留的那种）：
+#   /opt/<project>/            ← 新项目建议用这个
+#   /opt/<project>/app/        ← todo 现在的样子
+PROJECT_ROOT=""
+for cand in "/opt/${PROJECT}" "/opt/${PROJECT}/app"; do
+  if [ -f "${cand}/deploy/.env" ]; then PROJECT_ROOT="$cand"; break; fi
+done
+if [ -z "$PROJECT_ROOT" ]; then
+  echo "${LOG_PREFIX} 找不到 ${PROJECT} 的 deploy/.env（试过 /opt/${PROJECT}/deploy/.env 和 /opt/${PROJECT}/app/deploy/.env）" >&2
+  exit 1
+fi
+ENV_FILE="${PROJECT_ROOT}/deploy/.env"
+
+# 数据库容器名默认 <project>-db，可用环境变量覆盖
+DB_CONTAINER="${DB_CONTAINER:-${PROJECT}-db}"
+if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
+  echo "${LOG_PREFIX} 数据库容器 ${DB_CONTAINER} 不存在（可用 DB_CONTAINER=xxx 指定）" >&2
   exit 1
 fi
 DB_USER=$(grep '^DB_USER=' "$ENV_FILE" | cut -d= -f2)
@@ -45,7 +59,7 @@ mkdir -p "$BACKUP_ROOT"
 # ---------- 1. 数据库 ----------
 # 注意：pg_dump 在 todo-db 容器里跑，产物落回宿主机
 echo "${LOG_PREFIX} 备份数据库 ${DB_NAME} …"
-docker exec todo-db pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists \
+docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists \
   | gzip > "${BACKUP_ROOT}/db-${STAMP}.sql.gz"
 echo "${LOG_PREFIX}   → db-${STAMP}.sql.gz ($(du -h "${BACKUP_ROOT}/db-${STAMP}.sql.gz" | cut -f1))"
 

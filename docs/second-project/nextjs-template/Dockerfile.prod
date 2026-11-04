@@ -1,0 +1,74 @@
+# =====================================================
+# Next.js 生产 Dockerfile（standalone 模式）—— 无数据库版本
+#
+# 适用：单应用仓库（apps/web 那种 monorepo 见文件末尾的改法）
+#
+# 两个必改项：
+#   1. 下面 ENV PORT=3000 → 容器内端口，与宿主机映射的端口无关
+#   2. next.config 必须是 output: 'standalone'，否则下面 COPY .next/standalone 会失败
+#
+# 关键点（都踩过）：
+#   - build context = 项目仓库根目录
+#   - npm/pnpm 走 npmmirror，国内拉包快很多
+#   - 健康检查用 wget（alpine 里没有 curl，RUN 时装一下）
+# =====================================================
+
+# ---------- 阶段 1：装依赖 + 构建 ----------
+FROM node:22-alpine AS builder
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
+RUN npm config set registry https://registry.npmmirror.com
+
+WORKDIR /repo
+
+# ---- 单应用仓库：拷这两个就够 ----
+COPY package.json pnpm-lock.yaml* ./
+
+# ---- monorepo 仓库：改成下面这三行（并把最后的 COPY 也改成 COPY apps/web ./apps/web）----
+# COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# COPY apps/web/package.json ./apps/web/
+
+RUN pnpm install --frozen-lockfile --reporter=ndjson
+
+# ---- 拷源码 ----
+# 单应用：
+COPY . .
+# monorepo：
+# COPY apps/web ./apps/web
+
+# ---- 构建 ----
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
+
+# ---------- 阶段 2：运行时 ----------
+FROM node:22-alpine AS runner
+
+WORKDIR /repo
+
+# 健康检查要用 wget
+RUN apk add --no-cache wget curl
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# ---- 拷构建产物 ----
+# 单应用：
+COPY --from=builder /repo/.next/standalone ./
+COPY --from=builder /repo/.next/static ./.next/static
+COPY --from=builder /repo/public ./public
+# monorepo：
+# COPY --from=builder /repo/apps/web/.next/standalone ./
+# COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
+# COPY --from=builder /repo/apps/web/public ./apps/web/public
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD wget --spider --quiet http://localhost:3000/ || exit 1
+
+CMD ["node", "server.js"]
+# monorepo 改成： CMD ["node", "apps/web/server.js"]

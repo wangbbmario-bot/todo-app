@@ -1,0 +1,53 @@
+# =====================================================
+# 第二个项目 compose（Next.js + 无数据库 + IP:端口 访问）
+#
+# 放在新项目仓库的 deploy/docker-compose.prod.yml
+#
+# ★ 三条必须遵守的约定（照抄 todo 项目踩过的坑）：
+#   1. 部署命令必须带 `-p <project>`：compose 会用 project 名给卷加前缀，
+#      project 名撞了 → 两个项目共用一个卷 → 一方重建就把另一方数据冲掉
+#      （todo 服务器上现在还留着 deploy_* / todo_* 两套孤儿卷，就是这么来的）
+#   2. 部署命令必须带 `--env-file deploy/.env`：compose 只在【当前目录】找 .env，
+#      不带这个参数所有 ${XXX} 会解析成空
+#   3. container_name 要带项目前缀：两个项目都叫 "web" 会冲突
+#
+# ★ 端口说明：
+#   现在用 IP + 端口直接对外（还没配域名），所以这里必须绑 0.0.0.0。
+#   等将来域名 + HTTPS 配好后：
+#     - 改成 "127.0.0.1:3001:3000"
+#     - 在 Caddyfile 里加站点块 reverse_proxy <容器名>:3000
+#     - 走 80/443 对外，业务端口不再暴露
+# =====================================================
+
+services:
+  web:
+    image: ${APP_NAME:-newapp}-web:latest
+    container_name: ${APP_NAME:-newapp}-web
+    restart: unless-stopped
+    build:
+      # context = 仓库根；Dockerfile.prod 里所有路径都是相对的（没有 ../）
+      context: ..
+      dockerfile: deploy/Dockerfile.prod
+    # 宿主机 3001 → 容器 3000。换个端口就改这里（记得避开 80/443/3000）
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      # 其它环境变量在这里显式列出来（environment 是白名单，
+      # .env 里加了但这里没列 → 容器里根本没有那个变量）
+      # MY_API_KEY: ${MY_API_KEY}
+    # 内存上限：这台机器只有 1.87GB，跑两个 Next.js 必须设上限，
+    # 否则一个项目吃满会把另一个挤到 OOM（8 月就因为这个挂过）
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

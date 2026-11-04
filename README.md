@@ -3,7 +3,27 @@
 > **左边分项目，中间记待办，右边拆思路。**
 > 一个人的待办系统：清单 / 任务 / 子任务 / 思维导图画板 / 便利贴，数据存在自己的服务器上。
 
-![主界面](docs/screenshots/01-主界面.png)
+![主界面](docs/screenshots/01-main-workbench.png)
+
+<details>
+<summary>更多截图（画板 / 便利贴 / 后台 / 落地页 / 移动端）</summary>
+
+**思维导图画板** —— 父任务、子任务直角折线、右下角全局缩略图
+![画板](docs/screenshots/02-mindmap-board.png)
+
+**便利贴** —— 选中后上方浮出删除按钮
+![便利贴](docs/screenshots/03-sticky-note.png)
+
+**管理后台** —— 完成率、活跃清单、操作留痕
+![后台](docs/screenshots/04-admin.png)
+
+**公开落地页** —— 未登录也能看到产品内容（备案要求）
+![落地页](docs/screenshots/05-landing.png)
+
+**移动端** —— 底部三个 tab
+![移动端](docs/screenshots/06-mobile.png)
+
+</details>
 
 ---
 

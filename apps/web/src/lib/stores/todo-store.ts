@@ -15,6 +15,14 @@ import { DEFAULT_LAYOUT, PRIORITY_ORDER, LIST_COLORS } from "../types";
 import { INITIAL_LISTS, INITIAL_TASKS, generateUserSeed } from "../mock-data";
 import { getRandomFruitName } from "../fruit-names";
 
+/** /api/sync 返回的全量数据（服务端 Prisma 模型序列化成 JSON 后的形状） */
+type SyncResponse = {
+  lists?: List[];
+  tasks?: Task[];
+  subTasks?: SubTask[];
+  floatingNodes?: FloatingNode[];
+};
+
 interface TodoState {
   // 数据
   lists: List[];
@@ -475,13 +483,19 @@ export const useTodoStore = create<TodoState>()(
         const state = get();
         if (state.lists.length > 0) return;
         try {
-          const res = await fetch("/api/sync", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ since: 0 }), credentials: "include" });
+          // 2026-11-04 修正：原来这里是 POST + body { since: 0 }，
+          //   但 /api/sync 的 POST 是「写单条记录」（body 要 { entity, data }）
+          //   → 永远返回 400 → 下面这整段字段映射从来没跑过（一直是走 mock seed 兜底）。
+          //   改成 GET（拉全量）后这段才真正生效，所以字段映射必须跟服务端一致：
+          //   子任务服务端字段是 completed（原来写成 done，映射出来全是 false）。
+          const res = await fetch("/api/sync", { method: "GET", credentials: "include" });
           if (res.ok) {
-            const data = await res.json();
-            const lists = (data.lists || []).map((l) => ({ id: l.id, kind: l.kind, name: l.name, color: l.color, order: l.order ?? 0, taskCount: 0, pinned: !!l.pinned, createdAt: l.createdAt, updatedAt: l.updatedAt }));
-            const tasks = (data.tasks || []).map((t) => ({ id: t.id, listId: t.listId, title: t.title, status: t.status, priority: t.priority, order: t.order ?? 0, dueAt: t.dueAt ?? null, completedAt: t.completedAt ?? null, description: t.description ?? "", tags: t.tags ?? [], createdAt: t.createdAt, updatedAt: t.updatedAt, deletedAt: t.deletedAt ?? null }));
-            const subTasks = (data.subTasks || []).map((s) => ({ id: s.id, taskId: s.taskId, title: s.title, done: !!s.done, order: s.order ?? 0, createdAt: s.createdAt, updatedAt: s.updatedAt }));
-            const floatingNodes = (data.floatingNodes || []).map((n) => ({ id: n.id, kind: n.kind || "TEXT", title: n.title || "", content: n.content || "", imageUrl: n.imageUrl ?? null, x: n.x ?? 0, y: n.y ?? 0, width: n.width ?? 200, height: n.height ?? 100, color: n.color, createdAt: n.createdAt, updatedAt: n.updatedAt, deletedAt: n.deletedAt ?? null }));
+            const data = (await res.json()) as SyncResponse;
+            // taskCount 是前端派生字段，服务端不存，统一置 0（跟 loadFromServer 一致）
+            const lists = (data.lists || []).map((l) => ({ ...l, taskCount: 0 }));
+            const tasks = data.tasks || [];
+            const subTasks = data.subTasks || [];
+            const floatingNodes = data.floatingNodes || [];
             set({ lists, tasks, subTasks, floatingNodes, selectedListId: lists.find((l) => l.kind === "LIST")?.id ?? null, selectedTaskId: null, layout: DEFAULT_LAYOUT });
             return;
           }

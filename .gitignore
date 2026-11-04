@@ -26,3 +26,6 @@ pnpm-lock.yaml
 .env
 .env.local
 .env.*.local
+
+# 构建期生成的版本文件（部署脚本每次 build 前会重写，不进版本库）
+apps/web/public/version.json

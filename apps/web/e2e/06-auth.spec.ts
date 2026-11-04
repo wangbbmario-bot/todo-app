@@ -6,15 +6,16 @@
  * - 注册流程
  * - 找回密码（已废弃但要测错误码）
  *
- * 测试用户：18982817293 / 18982817293（已存在）
+ * 测试账号从环境变量读（见 .env.example 的 E2E_PHONE / E2E_PASSWORD），
+ * 不要把真实账号写进仓库。
  * 注册测试用动态生成的手机号避免冲突
  */
 import { test, expect } from "@playwright/test";
 
-// 已知存在的测试账号
+// 已知存在的测试账号（用环境变量注入，别硬编码真实账号）
 const EXISTING_USER = {
-  phone: "18982817293",
-  password: "18982817293",
+  phone: process.env.E2E_PHONE ?? "13800000000",
+  password: process.env.E2E_PASSWORD ?? "test-password",
 };
 
 // 动态生成注册测试手机号（11 位 1 开头）

@@ -1,7 +1,7 @@
 # 第二个项目部署（Next.js · 无数据库 · IP+端口）
 
 > 已确认的选择：**Next.js 常驻进程 / 不要数据库 / 先用 IP+端口访问不配 HTTPS / 前置清理由我自己来**
-> 目标服务器：47.107.46.78（2 核 / 1.87GB 内存 / 41G 可用磁盘）
+> 目标服务器：<server-ip>（2 核 / 1.87GB 内存 / 41G 可用磁盘）
 
 ---
 
@@ -74,7 +74,7 @@ cd /opt/newapp && git pull && ./scripts/deploy.sh --clean
 ```bash
 # 本地
 tar czf newapp.tar.gz --exclude=node_modules --exclude=.next --exclude=.git newapp/
-scp newapp.tar.gz root@47.107.46.78:/opt/
+scp newapp.tar.gz root@<server-ip>:/opt/
 # 服务器
 cd /opt && tar xzf newapp.tar.gz && cd newapp && ./scripts/deploy.sh
 ```
@@ -109,7 +109,7 @@ docker ps --filter name=newapp-web --format '{{.Names}} | {{.Status}} | {{.Ports
 # 页面能通
 curl -sI http://127.0.0.1:3001 | head -1
 # 外部能通（IP + 端口）
-curl -sI http://47.107.46.78:3001 | head -1
+curl -sI http://<server-ip>:3001 | head -1
 ```
 
 ---
@@ -128,7 +128,7 @@ curl -sI http://47.107.46.78:3001 | head -1
 
 ## 6. 将来要备案 / 上线时补的 3 件事
 
-1. **域名解析**：阿里云 DNS 加 A 记录 → 47.107.46.78
+1. **域名解析**：阿里云 DNS 加 A 记录 → <server-ip>
 2. **Caddy 反代**：Caddyfile 加站点块，`reverse_proxy newapp-web:3000`
    ```bash
    docker exec todo-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

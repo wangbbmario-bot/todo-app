@@ -58,9 +58,11 @@ PROJECT_NAME=todo bash /opt/todo/app/scripts/rebuild-and-deploy.sh
 
 ## 已知数据
 
-- User `18982817293` (id `cmuxps7j00000ciec7kne8llu`)
-- 7 个清单：萝卜 / 收件箱 / 工作 / 生活 / 草莓 / 脐橙 / 红心柚
-- 0 个任务
+> 脱敏说明：真实账号、手机号、user id 与具体清单名已从仓库移除，
+> 需要时从服务器上的数据库查（`scripts/cleanup-test-data.sh` 已把限定条件固化）。
+
+- 1 个管理员账号（手机号只在服务器 `.env` / 数据库里，仓库内不记录）
+- 若干用户清单（名称因人而异，不在仓库中列举）
 
 ## 备份
 

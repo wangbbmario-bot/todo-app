@@ -8,7 +8,8 @@
 # 用法：
 #   bash scripts/cleanup-test-data.sh                    # 预览（只 SELECT）
 #   bash scripts/cleanup-test-data.sh --apply            # 真删
-#   PHONE=18982817293 bash scripts/cleanup-test-data.sh --apply
+#   PHONE=13800000000 bash scripts/cleanup-test-data.sh --apply
+#   （PHONE 是要清理的账号手机号，别把真实账号写进仓库）
 #
 # 安全设计：
 #   1. 每条 DELETE 的 WHERE 都必须带 userId 限定
@@ -18,7 +19,7 @@
 #
 set -euo pipefail
 
-PHONE="${PHONE:-18552279527}"          # 默认只清理游客/测试账号
+PHONE="${PHONE:-13800000000}"          # 默认只清理游客/测试账号（真实账号请用环境变量传入）
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1
 

@@ -21,7 +21,7 @@ import { clearGuestCookie, isGuestMode } from "@/lib/auth/guest";
  * 2026-10-21：构造「当前域名」的登录页绝对 URL
  *
  * 之前直接写 `signOut({ callbackUrl: "/login" })`，但相对路径会被 NextAuth
- * 用 NEXTAUTH_URL 环境变量补全 —— 而线上 NEXTAUTH_URL = http://47.107.46.78.nip.io，
+ * 用 NEXTAUTH_URL 环境变量补全 —— 而线上 NEXTAUTH_URL = http://<server-ip>.nip.io，
  * 于是用户从 https://juststartit.cn 点「去登录」，被弹到 nip.io（而且是 HTTP，
  * cookie domain 和 juststartit.cn 不通用，看起来像数据全丢了）。
  * 顺带把 authjs.callback-url cookie 也污染成 nip.io，影响后续登录。

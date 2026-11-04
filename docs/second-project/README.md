@@ -1,6 +1,6 @@
 # 在这台服务器上部署第二个项目 · 操作清单
 
-> 目标服务器：47.107.46.78（阿里云 ECS，2 核 / 1.87GB 内存 / 79GB 磁盘）
+> 目标服务器：<server-ip>（阿里云 ECS，2 核 / 1.87GB 内存 / 79GB 磁盘）
 > 现有项目：`todo`（juststartit.cn，Next.js + PostgreSQL + Caddy）
 > 结论先行：**资源够用**（容器才占 145MB，可用内存 1.35GB，还有 4G swap），
 > 但有 **3 件事必须先做**，否则第二个项目会踩坑或跟第一个项目互相干扰。
@@ -39,7 +39,7 @@ docker image prune -f          # 清理悬空层
 ### ② 把 3000 端口从公网收回来
 
 现在 `todo-web` 的端口映射是 `"3000:3000"` → **绑定 0.0.0.0**，
-意味着任何人都能 `http://47.107.46.78:3000` 直连，**绕过 Caddy**：
+意味着任何人都能 `http://<server-ip>:3000` 直连，**绕过 Caddy**：
 没有 HTTPS、没有 ICP 备案号页脚、没有 `X-Frame-Options` 等安全头。
 （备案审核员如果用这个地址看，页脚备案号就不在了。）
 
@@ -110,7 +110,7 @@ docker exec todo-caddy caddy validate --config /etc/caddy/Caddyfile --adapter ca
 docker exec todo-caddy caddy reload  --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
-**前置条件**：域名要先解析到这台服务器（阿里云 DNS 加一条 A 记录 → 47.107.46.78），
+**前置条件**：域名要先解析到这台服务器（阿里云 DNS 加一条 A 记录 → <server-ip>），
 Caddy 才能自动申请 Let's Encrypt 证书。
 > 如果新项目用 `juststartit.cn` 的子域名：主域名已备案，子域名一般不需要单独备案
 > （以当地管局口径为准）。如果是**独立域名**：国内必须单独走一次 ICP 备案，

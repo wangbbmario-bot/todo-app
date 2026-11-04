@@ -58,4 +58,4 @@ done
 echo ""
 docker ps --filter "name=${APP_NAME}-web" --format '{{.Names}} | {{.Status}} | {{.Ports}}'
 echo "✅ 部署完成：${APP_NAME}-web:${TAG}"
-echo "   访问：http://47.107.46.78:3001"
+echo "   访问：http://<server-ip>:3001"
